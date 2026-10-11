@@ -134,6 +134,24 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 .page { background: #ffffff; border-radius: 4px; box-shadow: 0 1px 3px rgba(20, 24, 40, .14); position: relative; max-width: 100%; }
 .page canvas { display: block; width: 100%; height: auto; border-radius: 4px; }
 .page .no { position: absolute; right: 8px; bottom: 6px; font: 11px var(--mono); color: #8a8fa0; }
+.lecture { gap: 0; min-width: 0; }
+.lec, .lec .md { min-width: 0; overflow-wrap: anywhere; }
+.lec .md .f { white-space: pre-wrap; overflow-x: auto; max-width: 100%; }
+.lec { border-left: 3px solid transparent; padding: 8px 10px 8px 12px; margin-left: -12px; border-radius: 0 8px 8px 0; transition: background .15s; }
+.lec[data-from] { cursor: pointer; }
+.lec[data-from]:hover { background: var(--accent-soft); }
+.lec.here { border-left-color: var(--cc, var(--accent)); }
+.lec.on { background: var(--accent-soft); border-left-color: var(--cc, var(--accent)); }
+.lec .lhead { display: flex; align-items: center; gap: 8px; }
+.lec .lhead:empty { display: none; }
+.lec .ed { margin-left: auto; opacity: 0; }
+.lec:hover .ed, .lec .ed:focus-visible { opacity: 1; }
+.lec .pg { font: 500 11px var(--mono); color: var(--cc, var(--accent)); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; cursor: pointer; }
+.lec .md h4 { margin: 4px 0 2px; }
+.lec textarea { width: 100%; min-height: 200px; font: 13px/1.5 var(--mono); padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.lec .row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px; }
+.lec .row .tag { margin-right: auto; }
+@media (hover: none) { .lec .ed { opacity: 1; } }
 .pnote { background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--cc, var(--accent)); border-radius: 8px; padding: 10px 14px; font-size: 14px; }
 .pnote .pn-h { font: 500 11px var(--mono); letter-spacing: .06em; color: var(--cc, var(--accent)); margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
 .ptrans { background: var(--accent-soft); border-radius: 6px; padding: 8px 14px 10px; font-size: 14px; margin-top: -6px; }
@@ -220,7 +238,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     const flushL = () => { if (list) { out.push("<ul>" + list.map(li => "<li>" + inline(li) + "</li>").join("") + "</ul>"); list = null; } };
     for (const raw of String(text || "").split("\n")) {
       const line = raw.trimEnd();
-      if (/^#{2,4}\s/.test(line)) { flushP(); flushL(); out.push("<h4>" + inline(line.replace(/^#+\s/, "").replace(/\s+@\d+\s*$/, "")) + "</h4>"); }
+      if (/^#{2,4}\s/.test(line)) { flushP(); flushL(); out.push("<h4>" + inline(line.replace(/^#+\s/, "").replace(/^@\d+(\s*[-–]\s*\d+)?\s*/, "").replace(/\s+@\d+(-\d+)?\s*$/, "")) + "</h4>"); }
       else if (/^\s*[-*]\s/.test(line)) { flushP(); (list = list || []).push(line.replace(/^\s*[-*]\s/, "")); }
       else if (/^>\s?/.test(line)) { flushP(); flushL(); out.push('<span class="f">' + esc(line.replace(/^>\s?/, "")) + "</span>"); }
       else if (!line.trim()) { flushP(); flushL(); }
@@ -232,10 +250,13 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   function chunks(text) {
     const out = [];
     for (const line of String(text || "").split("\n")) {
-      if (/^#{2}\s/.test(line) || !out.length) { const m = line.match(/\s@(\d+)\s*$/); out.push({ at: m ? +m[1] : null, lines: [] }); }
+      if (/^#{2}\s/.test(line) || !out.length) {
+        const m = line.match(/^#{2}\s+@(\d+)(?:\s*[-–]\s*(\d+))?/) || line.match(/\s@(\d+)(?:-(\d+))?\s*$/);
+        out.push({ at: m ? +m[1] : null, to: m ? +(m[2] || m[1]) : null, lines: [] });
+      }
       out[out.length - 1].lines.push(line);
     }
-    return out.map(c => ({ at: c.at, md: c.lines.join("\n").trim() })).filter(c => c.md);
+    return out.map(c => ({ at: c.at, to: c.to, md: c.lines.join("\n").trim() })).filter(c => c.md);
   }
 
   // ---------- crypto ----------
@@ -334,34 +355,6 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
       });
     }));
     $("trbtn").hidden = !anyTr;
-    S.view.days.forEach(d => d.items.forEach(it => {
-      if (!it.sections.length || it.note || it.self) return;
-      const text = currentExplain(it).text; if (!text) return;
-      const base = it.sections[0].page, last = it.sections[it.sections.length - 1], end = last.page + last.count - 1;
-      const cs = chunks(text);
-      cs.forEach((c, i) => {
-        const el = document.createElement("div"); el.className = "pnote"; el.style.setProperty("--cc", "var(--c-" + it.course + ")");
-        const eid = "p:" + it.key + ":" + i;
-        if (S.editing === eid) {
-          el.innerHTML = '<div class="pn-h">' + esc(it.course + " " + it.kind) + ' · 编辑这段</div><textarea></textarea><div class="row"><button class="tool" type="button" data-a="cancel">取消</button><button class="tool primary" type="button" data-a="save">保存</button></div>';
-          const ta = el.querySelector("textarea"); ta.value = c.md; setTimeout(() => ta.focus(), 0);
-          el.querySelector('[data-a="cancel"]').onclick = () => { S.editing = null; placeNotes(); };
-          el.querySelector('[data-a="save"]').onclick = async () => {
-            const all = chunks(currentExplain(it).text); all[i] = { at: c.at, md: ta.value.trim() };
-            const ok = await saveDoc("explain", it.key, { md: all.map(x => x.md).filter(Boolean).join("\n\n"), updatedAt: Date.now() });
-            if (ok) { S.editing = null; render(); }
-          };
-        } else {
-          el.innerHTML = '<div class="pn-h"><span>' + esc(it.course + " " + it.kind) + " · 讲解</span>" + (desktopMQ.matches ? '<button class="tool" type="button">编辑</button>' : "") + "</div><div class=\"md\">" + renderMd(c.md) + "</div>";
-          const eb = el.querySelector(".pn-h .tool"); if (eb) eb.onclick = () => { if (!canEdit()) return needEdit(); S.editing = eid; placeNotes(); };
-        }
-        if (i === 0 && c.at == null) { const b = S.pageBoxes[base]; if (b) b.before(el); return; }
-        const k = c.at == null ? end : Math.min(end, Math.max(base, base + c.at - 1));
-        const box = S.pageBoxes[k]; if (!box) return;
-        let after = box; while (after.nextElementSibling && /\bp(note|trans)\b/.test(after.nextElementSibling.className)) after = after.nextElementSibling;
-        after.after(el);
-      });
-    }));
   }
 
   function card(it) {
@@ -402,21 +395,56 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     const editable = desktopMQ.matches;
     const ex = currentExplain(it);
     if (S.editing === "x:" + it.key) {
-      b.innerHTML = '<div class="bhead"><h3>讲解（编辑中）</h3><span class="tag">## 小标题（末尾写 @页 就插到这节课第几页后）　- 列表　&gt; 公式行　**加粗**</span></div><textarea id="ta-' + cssId(it.key) + '"></textarea><div class="row"><button class="tool" type="button" data-a="reset">恢复原版</button><button class="tool" type="button" data-a="cancel">取消</button><button class="tool primary" type="button" data-a="save">保存</button></div>';
+      b.innerHTML = '<div class="bhead"><h3>讲解（编辑中）</h3><span class="tag">## @页 标题（@3-4 = 这节课第 3–4 页）　- 列表　&gt; 公式行　**加粗**</span></div><textarea id="ta-' + cssId(it.key) + '"></textarea><div class="row"><button class="tool" type="button" data-a="reset">恢复原版</button><button class="tool" type="button" data-a="cancel">取消</button><button class="tool primary" type="button" data-a="save">保存</button></div>';
       const ta = b.querySelector("textarea"); ta.value = ex.text; setTimeout(() => ta.focus(), 0);
       b.querySelector('[data-a="cancel"]').onclick = () => { S.editing = null; render(); };
       b.querySelector('[data-a="save"]').onclick = async () => { await saveDoc("explain", it.key, { md: ta.value, updatedAt: Date.now() }); S.editing = null; render(); };
       b.querySelector('[data-a="reset"]').onclick = async () => { await deleteDoc("explain", it.key); S.editing = null; render(); };
       return b;
     }
-    const cs = chunks(ex.text), first = cs[0] && cs[0].at == null ? cs[0] : null, rest = cs.length - (first ? 1 : 0);
-    b.innerHTML = '<div class="bhead"><h3>讲解' + (ex.edited ? " · 已改过" : "") + "</h3>" + (desktopMQ.matches ? '<button class="tool" type="button" data-a="edit">编辑</button>' : "") + "</div>" +
-      (ex.text ? (first ? '<div class="md">' + renderMd(first.md) + "</div>" : "") +
-        (rest && it.sections.length ? '<p class="muted">其余 ' + rest + ' 段讲解插在课件里对应的那页后面。<button class="tool" type="button" data-a="go">在课件里看</button></p>' : "")
-        : '<p class="muted">这节课的讲解还没写好，早上的推送会补上。</p>');
+    const base = it.sections.length ? it.sections[0].page : 0;
+    b.className = "block lecture";
+    b.innerHTML = '<div class="bhead"><h3>老师带读' + (ex.edited ? " · 已改过" : "") + "</h3>" + (desktopMQ.matches ? '<button class="tool" type="button" data-a="edit">整篇编辑</button>' : "") + "</div>" +
+      (ex.text ? "" : '<p class="muted">这节课的带读还没写好，早上的推送会补上。</p>');
+    chunks(ex.text).forEach((c, i) => {
+      const eid = "c:" + it.key + ":" + i;
+      const row = document.createElement("section"); row.className = "lec" + (c.at == null ? " plain" : "");
+      if (c.at != null && base) { row.dataset.from = base + c.at - 1; row.dataset.to = base + c.to - 1; row.dataset.key = it.key; }
+      if (S.editing === eid) {
+        row.innerHTML = '<textarea></textarea><div class="row"><span class="tag">## @页 标题（@3-4 表示这节课第 3–4 页）</span><button class="tool" type="button" data-a="cancel">取消</button><button class="tool primary" type="button" data-a="save">保存</button></div>';
+        const ta = row.querySelector("textarea"); ta.value = c.md; setTimeout(() => ta.focus(), 0);
+        row.querySelector('[data-a="cancel"]').onclick = () => { S.editing = null; render(); };
+        row.querySelector('[data-a="save"]').onclick = async () => {
+          const all = chunks(currentExplain(it).text); all[i] = { md: ta.value.trim() };
+          if (await saveDoc("explain", it.key, { md: all.map(x => x.md).filter(Boolean).join("\n\n"), updatedAt: Date.now() })) { S.editing = null; render(); }
+        };
+      } else {
+        const pg = c.at != null && base ? '<button class="pg" type="button" title="在课件里打开">第 ' + (base + c.at - 1) + (c.to > c.at ? "–" + (base + c.to - 1) : "") + " 页</button>" : "";
+        row.innerHTML = '<div class="lhead">' + pg + (desktopMQ.matches ? '<button class="tool ed" type="button">编辑</button>' : "") + '</div><div class="md">' + renderMd(c.md) + "</div>";
+        const eb = row.querySelector(".ed"); if (eb) eb.onclick = e => { e.stopPropagation(); if (!canEdit()) return needEdit(); S.editing = eid; render(); };
+        if (row.dataset.from) row.addEventListener("click", e => { if (e.target.closest(".ed, a")) return; jumpTo(+row.dataset.from, b.closest(".card"), row); });
+      }
+      b.appendChild(row);
+    });
     const btn = b.querySelector('[data-a="edit"]'); if (btn) btn.onclick = () => { if (!canEdit()) return needEdit(); S.editing = "x:" + it.key; render(); };
-    const go = b.querySelector('[data-a="go"]'); if (go) go.onclick = () => showSection(it, 0, go.closest(".card"));
     return b;
+  }
+
+  function jumpTo(page, cardEl, row) {
+    document.querySelectorAll(".card.active").forEach(c => c.classList.remove("active"));
+    if (cardEl) cardEl.classList.add("active");
+    document.querySelectorAll(".lec.on").forEach(r => r.classList.remove("on")); if (row) row.classList.add("on");
+    $("viewer").classList.add("open");
+    let tries = 0;
+    const go = () => { const box = S.pageBoxes[page]; if (box) { scrollPane(box); setTimeout(() => scrollPane(box), 350); setTimeout(() => scrollPane(box), 1000); } else if (tries++ < 50) setTimeout(go, 200); };
+    go();
+  }
+  function scrollPane(el) {
+    const pane = $("pages"); pane.scrollTop += el.getBoundingClientRect().top - pane.getBoundingClientRect().top - 8;
+  }
+  // highlight the walkthrough part for the page being read
+  function markPage(n) {
+    document.querySelectorAll(".lec[data-from]").forEach(r => r.classList.toggle("here", n >= +r.dataset.from && n <= +r.dataset.to));
   }
 
   function notesBlock(it) {
@@ -543,7 +571,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     const base = (await pdf.getPage(1)).getViewport({ scale: 1 });
     if (observer) observer.disconnect(); if (pageObs) pageObs.disconnect();
     observer = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) { observer.unobserve(en.target); renderPage(pdf, en.target, token); } }), { root: pages, rootMargin: "900px 0px" });
-    pageObs = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) $("vp").textContent = en.target.dataset.n + " / " + pdf.numPages; }), { root: pages, threshold: 0.5 });
+    pageObs = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) { $("vp").textContent = en.target.dataset.n + " / " + pdf.numPages; markPage(+en.target.dataset.n); } }), { root: pages, threshold: 0.5 });
     for (let i = 1; i <= pdf.numPages; i++) {
       if (starts[i]) { const s = document.createElement("div"); s.className = "psec"; s.textContent = starts[i]; pages.appendChild(s); }
       const box = document.createElement("div"); box.className = "page"; box.dataset.n = i; box.style.aspectRatio = base.width + " / " + base.height;
