@@ -131,6 +131,9 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 .page { background: #ffffff; border-radius: 4px; box-shadow: 0 1px 3px rgba(20, 24, 40, .14); position: relative; max-width: 100%; }
 .page canvas { display: block; width: 100%; height: auto; border-radius: 4px; }
 .page .no { position: absolute; right: 8px; bottom: 6px; font: 11px var(--mono); color: #8a8fa0; }
+.pnote { background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--cc, var(--accent)); border-radius: 8px; padding: 10px 14px; font-size: 14px; }
+.pnote .pn-h { font: 500 11px var(--mono); letter-spacing: .06em; color: var(--cc, var(--accent)); margin-bottom: 2px; }
+.pnote .md h4 { margin-top: 2px; }
 .psec { font-size: 12px; font-weight: 600; color: var(--accent); padding-top: 6px; }
 
 @media (max-width: 1180px) { .app { grid-template-columns: 190px minmax(0, 1fr) minmax(0, 0.9fr); } }
@@ -207,13 +210,22 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     const flushL = () => { if (list) { out.push("<ul>" + list.map(li => "<li>" + inline(li) + "</li>").join("") + "</ul>"); list = null; } };
     for (const raw of String(text || "").split("\n")) {
       const line = raw.trimEnd();
-      if (/^#{2,4}\s/.test(line)) { flushP(); flushL(); out.push("<h4>" + inline(line.replace(/^#+\s/, "")) + "</h4>"); }
+      if (/^#{2,4}\s/.test(line)) { flushP(); flushL(); out.push("<h4>" + inline(line.replace(/^#+\s/, "").replace(/\s+@\d+\s*$/, "")) + "</h4>"); }
       else if (/^\s*[-*]\s/.test(line)) { flushP(); (list = list || []).push(line.replace(/^\s*[-*]\s/, "")); }
       else if (/^>\s?/.test(line)) { flushP(); flushL(); out.push('<span class="f">' + esc(line.replace(/^>\s?/, "")) + "</span>"); }
       else if (!line.trim()) { flushP(); flushL(); }
       else { flushL(); para.push(line); }
     }
     flushP(); flushL(); return out.join("");
+  }
+  // Split an explanation into "## " chunks. A heading ending in "@k" belongs after page k of that session.
+  function chunks(text) {
+    const out = [];
+    for (const line of String(text || "").split("\n")) {
+      if (/^#{2}\s/.test(line) || !out.length) { const m = line.match(/\s@(\d+)\s*$/); out.push({ at: m ? +m[1] : null, lines: [] }); }
+      out[out.length - 1].lines.push(line);
+    }
+    return out.map(c => ({ at: c.at, md: c.lines.join("\n").trim() })).filter(c => c.md);
   }
 
   // ---------- crypto ----------
@@ -287,6 +299,28 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     if (d.message) cards.insertAdjacentHTML("beforeend", '<div class="empty">' + esc(d.message) + "</div>");
     d.items.forEach(item => cards.appendChild(card(item)));
     renderExtra();
+    placeNotes();
+  }
+
+  // Put each explanation chunk into the PDF column, right after the slide it talks about.
+  function placeNotes() {
+    const pages = $("pages"); if (!S.pdf || !S.view) return;
+    pages.querySelectorAll(".pnote").forEach(n => n.remove());
+    S.view.days.forEach(d => d.items.forEach(it => {
+      if (!it.sections.length || it.note || it.self) return;
+      const text = currentExplain(it).text; if (!text) return;
+      const base = it.sections[0].page, last = it.sections[it.sections.length - 1], end = last.page + last.count - 1;
+      const cs = chunks(text);
+      cs.forEach((c, i) => {
+        const el = document.createElement("div"); el.className = "pnote"; el.style.setProperty("--cc", "var(--c-" + it.course + ")");
+        el.innerHTML = '<div class="pn-h">' + esc(it.course + " " + it.kind) + " · 讲解</div><div class=\"md\">" + renderMd(c.md) + "</div>";
+        if (i === 0 && c.at == null) { const b = S.pageBoxes[base]; if (b) b.before(el); return; }
+        const k = c.at == null ? end : Math.min(end, Math.max(base, base + c.at - 1));
+        const box = S.pageBoxes[k]; if (!box) return;
+        let after = box; while (after.nextElementSibling && after.nextElementSibling.classList.contains("pnote")) after = after.nextElementSibling;
+        after.after(el);
+      });
+    }));
   }
 
   function card(it) {
@@ -327,16 +361,20 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     const editable = desktopMQ.matches && S.db;
     const ex = currentExplain(it);
     if (S.editing === "x:" + it.key) {
-      b.innerHTML = '<div class="bhead"><h3>讲解（编辑中）</h3><span class="tag">## 小标题　- 列表　&gt; 公式行　**加粗**</span></div><textarea id="ta-' + cssId(it.key) + '"></textarea><div class="row"><button class="tool" type="button" data-a="reset">恢复原版</button><button class="tool" type="button" data-a="cancel">取消</button><button class="tool primary" type="button" data-a="save">保存</button></div>';
+      b.innerHTML = '<div class="bhead"><h3>讲解（编辑中）</h3><span class="tag">## 小标题（末尾写 @页 就插到这节课第几页后）　- 列表　&gt; 公式行　**加粗**</span></div><textarea id="ta-' + cssId(it.key) + '"></textarea><div class="row"><button class="tool" type="button" data-a="reset">恢复原版</button><button class="tool" type="button" data-a="cancel">取消</button><button class="tool primary" type="button" data-a="save">保存</button></div>';
       const ta = b.querySelector("textarea"); ta.value = ex.text; setTimeout(() => ta.focus(), 0);
       b.querySelector('[data-a="cancel"]').onclick = () => { S.editing = null; render(); };
       b.querySelector('[data-a="save"]').onclick = async () => { await saveDoc("explain", it.key, { md: ta.value, updatedAt: Date.now() }); S.editing = null; render(); };
       b.querySelector('[data-a="reset"]').onclick = async () => { await deleteDoc("explain", it.key); S.editing = null; render(); };
       return b;
     }
-    b.innerHTML = '<div class="bhead"><h3>讲解' + (ex.edited ? " · 已改过" : "") + "</h3>" + (editable ? '<button class="tool" type="button">编辑</button>' : "") + "</div>" +
-      (ex.text ? '<div class="md">' + renderMd(ex.text) + "</div>" : '<p class="muted">这节课的讲解还没写好，早上的推送会补上。</p>');
-    const btn = b.querySelector(".tool"); if (btn) btn.onclick = () => { S.editing = "x:" + it.key; render(); };
+    const cs = chunks(ex.text), first = cs[0] && cs[0].at == null ? cs[0] : null, rest = cs.length - (first ? 1 : 0);
+    b.innerHTML = '<div class="bhead"><h3>讲解' + (ex.edited ? " · 已改过" : "") + "</h3>" + (editable ? '<button class="tool" type="button" data-a="edit">编辑</button>' : "") + "</div>" +
+      (ex.text ? (first ? '<div class="md">' + renderMd(first.md) + "</div>" : "") +
+        (rest && it.sections.length ? '<p class="muted">其余 ' + rest + ' 段讲解插在课件里对应的那页后面。<button class="tool" type="button" data-a="go">在课件里看</button></p>' : "")
+        : '<p class="muted">这节课的讲解还没写好，早上的推送会补上。</p>');
+    const btn = b.querySelector('[data-a="edit"]'); if (btn) btn.onclick = () => { S.editing = "x:" + it.key; render(); };
+    const go = b.querySelector('[data-a="go"]'); if (go) go.onclick = () => showSection(it, 0, go.closest(".card"));
     return b;
   }
 
@@ -466,6 +504,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
       box.innerHTML = '<span class="no">' + i + "</span>";
       pages.appendChild(box); S.pageBoxes[i] = box; observer.observe(box); pageObs.observe(box);
     }
+    placeNotes();
     $("vt").textContent = "资料合集 · " + md(S.date) + " " + wd(S.date);
     $("vp").textContent = "1 / " + pdf.numPages;
   }
