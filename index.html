@@ -44,6 +44,9 @@ body { margin: 0; padding-top: env(safe-area-inset-top, 0px); }
 .gh { display: grid; gap: 6px; font-size: 12px; color: var(--muted); }
 .gh input { font: 12px var(--mono); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--card); color: var(--ink); width: 100%; }
 .gh a { color: var(--accent); }
+.gh.need { outline: 2px solid var(--accent); outline-offset: 6px; border-radius: 4px; }
+.gh summary { cursor: pointer; color: var(--accent); font-weight: 600; }
+.gh b { color: var(--ink); font-weight: 500; }
 .gh .row2 { display: flex; gap: 6px; }
 body { background: var(--bg); color: var(--ink); font-family: var(--ui); font-size: 15px; line-height: 1.55; }
 button { font: inherit; color: inherit; }
@@ -132,7 +135,9 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 .page canvas { display: block; width: 100%; height: auto; border-radius: 4px; }
 .page .no { position: absolute; right: 8px; bottom: 6px; font: 11px var(--mono); color: #8a8fa0; }
 .pnote { background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--cc, var(--accent)); border-radius: 8px; padding: 10px 14px; font-size: 14px; }
-.pnote .pn-h { font: 500 11px var(--mono); letter-spacing: .06em; color: var(--cc, var(--accent)); margin-bottom: 2px; }
+.pnote .pn-h { font: 500 11px var(--mono); letter-spacing: .06em; color: var(--cc, var(--accent)); margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pnote textarea { width: 100%; min-height: 220px; font: 13px/1.5 var(--mono); padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.pnote .row { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
 .pnote .md h4 { margin-top: 2px; }
 .psec { font-size: 12px; font-weight: 600; color: var(--accent); padding-top: 6px; }
 
@@ -169,7 +174,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     <div class="brand">Studium täglich<small>Uni Stuttgart · WS 2026/27</small></div>
     <div><p class="label">日期</p><div class="dates" id="dates"></div></div>
     <div class="sync"><span class="dot" id="dot"></span><span id="synctxt">连接中</span></div>
-    <details class="gh" id="ghbox"><summary>编辑设置</summary>
+    <details class="gh" id="ghbox"><summary id="ghsum">✏️ 开启在线编辑</summary><b id="ghmsg" hidden>先在这里填一次 GitHub 令牌，之后就能直接编辑讲解、写笔记。</b>
       <span>在电脑上编辑讲解、写笔记需要一个 GitHub 令牌（只授权 studium-taeglich 仓库的 Contents 读写）。<a href="https://github.com/settings/personal-access-tokens/new" target="_blank" rel="noopener">去生成</a></span>
       <input id="ghtok" type="password" placeholder="github_pat_…" aria-label="GitHub 令牌">
       <div class="row2"><button class="tool primary" type="button" id="ghsave">保存</button><button class="tool" type="button" id="ghclear">清除</button><button class="tool" type="button" id="lockout">退出</button></div>
@@ -302,6 +307,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     placeNotes();
   }
 
+  const canEdit = () => !!(desktopMQ.matches && S.db);
   // Put each explanation chunk into the PDF column, right after the slide it talks about.
   function placeNotes() {
     const pages = $("pages"); if (!S.pdf || !S.view) return;
@@ -313,7 +319,20 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
       const cs = chunks(text);
       cs.forEach((c, i) => {
         const el = document.createElement("div"); el.className = "pnote"; el.style.setProperty("--cc", "var(--c-" + it.course + ")");
-        el.innerHTML = '<div class="pn-h">' + esc(it.course + " " + it.kind) + " · 讲解</div><div class=\"md\">" + renderMd(c.md) + "</div>";
+        const eid = "p:" + it.key + ":" + i;
+        if (S.editing === eid) {
+          el.innerHTML = '<div class="pn-h">' + esc(it.course + " " + it.kind) + ' · 编辑这段</div><textarea></textarea><div class="row"><button class="tool" type="button" data-a="cancel">取消</button><button class="tool primary" type="button" data-a="save">保存</button></div>';
+          const ta = el.querySelector("textarea"); ta.value = c.md; setTimeout(() => ta.focus(), 0);
+          el.querySelector('[data-a="cancel"]').onclick = () => { S.editing = null; placeNotes(); };
+          el.querySelector('[data-a="save"]').onclick = async () => {
+            const all = chunks(currentExplain(it).text); all[i] = { at: c.at, md: ta.value.trim() };
+            const ok = await saveDoc("explain", it.key, { md: all.map(x => x.md).filter(Boolean).join("\n\n"), updatedAt: Date.now() });
+            if (ok) { S.editing = null; render(); }
+          };
+        } else {
+          el.innerHTML = '<div class="pn-h"><span>' + esc(it.course + " " + it.kind) + " · 讲解</span>" + (desktopMQ.matches ? '<button class="tool" type="button">编辑</button>' : "") + "</div><div class=\"md\">" + renderMd(c.md) + "</div>";
+          const eb = el.querySelector(".pn-h .tool"); if (eb) eb.onclick = () => { if (!canEdit()) return needEdit(); S.editing = eid; placeNotes(); };
+        }
         if (i === 0 && c.at == null) { const b = S.pageBoxes[base]; if (b) b.before(el); return; }
         const k = c.at == null ? end : Math.min(end, Math.max(base, base + c.at - 1));
         const box = S.pageBoxes[k]; if (!box) return;
@@ -358,7 +377,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 
   function explainBlock(it) {
     const b = document.createElement("div"); b.className = "block";
-    const editable = desktopMQ.matches && S.db;
+    const editable = desktopMQ.matches;
     const ex = currentExplain(it);
     if (S.editing === "x:" + it.key) {
       b.innerHTML = '<div class="bhead"><h3>讲解（编辑中）</h3><span class="tag">## 小标题（末尾写 @页 就插到这节课第几页后）　- 列表　&gt; 公式行　**加粗**</span></div><textarea id="ta-' + cssId(it.key) + '"></textarea><div class="row"><button class="tool" type="button" data-a="reset">恢复原版</button><button class="tool" type="button" data-a="cancel">取消</button><button class="tool primary" type="button" data-a="save">保存</button></div>';
@@ -369,11 +388,11 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
       return b;
     }
     const cs = chunks(ex.text), first = cs[0] && cs[0].at == null ? cs[0] : null, rest = cs.length - (first ? 1 : 0);
-    b.innerHTML = '<div class="bhead"><h3>讲解' + (ex.edited ? " · 已改过" : "") + "</h3>" + (editable ? '<button class="tool" type="button" data-a="edit">编辑</button>' : "") + "</div>" +
+    b.innerHTML = '<div class="bhead"><h3>讲解' + (ex.edited ? " · 已改过" : "") + "</h3>" + (desktopMQ.matches ? '<button class="tool" type="button" data-a="edit">编辑</button>' : "") + "</div>" +
       (ex.text ? (first ? '<div class="md">' + renderMd(first.md) + "</div>" : "") +
         (rest && it.sections.length ? '<p class="muted">其余 ' + rest + ' 段讲解插在课件里对应的那页后面。<button class="tool" type="button" data-a="go">在课件里看</button></p>' : "")
         : '<p class="muted">这节课的讲解还没写好，早上的推送会补上。</p>');
-    const btn = b.querySelector('[data-a="edit"]'); if (btn) btn.onclick = () => { S.editing = "x:" + it.key; render(); };
+    const btn = b.querySelector('[data-a="edit"]'); if (btn) btn.onclick = () => { if (!canEdit()) return needEdit(); S.editing = "x:" + it.key; render(); };
     const go = b.querySelector('[data-a="go"]'); if (go) go.onclick = () => showSection(it, 0, go.closest(".card"));
     return b;
   }
@@ -381,7 +400,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   function notesBlock(it) {
     const b = document.createElement("div"); b.className = "block";
     const text = (S.notes[it.key] || {}).text || "";
-    const editable = desktopMQ.matches && S.db;
+    const editable = desktopMQ.matches;
     if (editable) {
       b.innerHTML = '<div class="bhead"><h3>我的笔记</h3><span class="tag" id="st-' + cssId(it.key) + '"></span></div><textarea class="notes" placeholder="课前疑问、课上要点、课后要复习的地方……自动保存"></textarea>';
       const ta = b.querySelector("textarea"); ta.value = text; ta.id = "n-" + cssId(it.key);
@@ -413,6 +432,10 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     x.innerHTML = h;
   }
 
+  function needEdit() {
+    const box = $("ghbox"); box.open = true; box.classList.add("need"); $("ghmsg").hidden = false;
+    $("ghtok").focus(); box.scrollIntoView({ block: "nearest" });
+  }
   // ---------- GitHub store (encrypted user.enc on branch userdata) ----------
   // S.db is truthy when edits can be saved (desktop with a token). Reads work without a token.
   const API = "https://api.github.com/repos/" + REPO + "/contents/" + DATA_PATH;
@@ -432,6 +455,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     try {
       const d = await pull(); S.explain = d.explain; S.notes = d.notes;
       S.db = tok() && desktopMQ.matches ? true : null;
+      $("ghsum").textContent = tok() ? "编辑设置" : "✏️ 开启在线编辑"; if (tok()) { $("ghbox").classList.remove("need"); $("ghmsg").hidden = true; }
       setSync(true, S.db ? "已同步 · 可编辑" : (tok() ? "已同步" : "已同步 · 只读"));
       const a = document.activeElement; if (!(S.editing || (a && a.tagName === "TEXTAREA"))) render();
     } catch (e) { setSync(false, "笔记没载入：" + e.message); }
@@ -447,7 +471,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   }
   function write(col, key, data) {
     const job = async () => {
-      if (!tok()) return false;
+      if (!tok()) { needEdit(); return false; }
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
           const cur = await pull();
