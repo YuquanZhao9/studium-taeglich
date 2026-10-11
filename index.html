@@ -136,6 +136,11 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 .page .no { position: absolute; right: 8px; bottom: 6px; font: 11px var(--mono); color: #8a8fa0; }
 .pnote { background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--cc, var(--accent)); border-radius: 8px; padding: 10px 14px; font-size: 14px; }
 .pnote .pn-h { font: 500 11px var(--mono); letter-spacing: .06em; color: var(--cc, var(--accent)); margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.ptrans { background: var(--accent-soft); border-radius: 6px; padding: 8px 14px 10px; font-size: 14px; margin-top: -6px; }
+.ptrans .pn-h { font: 500 11px var(--mono); letter-spacing: .06em; color: var(--accent); margin-bottom: 2px; }
+.ptrans .md h4 { margin: 2px 0 4px; font-size: 14px; }
+.ptrans ul { margin: 2px 0; padding-left: 18px; }
+#trbtn[aria-pressed="true"] { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .pnote textarea { width: 100%; min-height: 220px; font: 13px/1.5 var(--mono); padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
 .pnote .row { display: flex; justify-content: flex-end; gap: 6px; margin-top: 6px; }
 .pnote .md h4 { margin-top: 2px; }
@@ -190,7 +195,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   </main>
 
   <aside class="viewer" id="viewer" aria-label="资料 PDF">
-    <div class="vhead"><span class="vt" id="vt">资料合集</span><span class="vp" id="vp"></span><button class="tool vclose" id="vclose" type="button">关闭</button></div>
+    <div class="vhead"><span class="vt" id="vt">资料合集</span><span class="vp" id="vp"></span><button class="tool" id="trbtn" type="button" aria-pressed="false" hidden>中文对照</button><button class="tool vclose" id="vclose" type="button">关闭</button></div>
     <div class="pages" id="pages"><p class="muted">选一节课的资料，在这里翻看。</p></div>
   </aside>
 </div>
@@ -307,11 +312,28 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     placeNotes();
   }
 
+  const trOn = () => { try { return localStorage.getItem("st-tr") !== "0"; } catch (e) { return true; } };
+  $("trbtn").addEventListener("click", () => { try { localStorage.setItem("st-tr", trOn() ? "0" : "1"); } catch (e) {} placeNotes(); });
   const canEdit = () => !!(desktopMQ.matches && S.db);
   // Put each explanation chunk into the PDF column, right after the slide it talks about.
   function placeNotes() {
     const pages = $("pages"); if (!S.pdf || !S.view) return;
-    pages.querySelectorAll(".pnote").forEach(n => n.remove());
+    pages.querySelectorAll(".pnote, .ptrans").forEach(n => n.remove());
+    const showTr = trOn();
+    $("trbtn").setAttribute("aria-pressed", showTr ? "true" : "false");
+    let anyTr = false;
+    S.view.days.forEach(d => d.items.forEach(it => {
+      const tr = it.translation || {}; if (!it.sections.length || !Object.keys(tr).length) return;
+      anyTr = true; if (!showTr) return;
+      const base = it.sections[0].page;
+      Object.keys(tr).forEach(k => {
+        const box = S.pageBoxes[base + (+k) - 1]; if (!box || !tr[k]) return;
+        const el = document.createElement("div"); el.className = "ptrans";
+        el.innerHTML = '<div class="pn-h"><span>' + esc(it.course) + " · 第 " + (base + (+k) - 1) + ' 页 · 中文</span></div><div class="md">' + renderMd(tr[k]) + "</div>";
+        box.after(el);
+      });
+    }));
+    $("trbtn").hidden = !anyTr;
     S.view.days.forEach(d => d.items.forEach(it => {
       if (!it.sections.length || it.note || it.self) return;
       const text = currentExplain(it).text; if (!text) return;
@@ -336,7 +358,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
         if (i === 0 && c.at == null) { const b = S.pageBoxes[base]; if (b) b.before(el); return; }
         const k = c.at == null ? end : Math.min(end, Math.max(base, base + c.at - 1));
         const box = S.pageBoxes[k]; if (!box) return;
-        let after = box; while (after.nextElementSibling && after.nextElementSibling.classList.contains("pnote")) after = after.nextElementSibling;
+        let after = box; while (after.nextElementSibling && /\bp(note|trans)\b/.test(after.nextElementSibling.className)) after = after.nextElementSibling;
         after.after(el);
       });
     }));
