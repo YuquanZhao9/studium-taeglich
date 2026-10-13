@@ -206,7 +206,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 
   <main class="main">
     <div class="mtop"><div class="brand">Studium täglich</div><select id="dsel" aria-label="选择日期"></select></div>
-    <div class="seg" id="seg" role="group" aria-label="今天或明天"></div>
+    <div class="seg" id="seg" role="group" aria-label="当天或次日"></div>
     <div class="dayhead" id="dayhead"></div>
     <div class="cards" id="cards"><div class="empty">正在载入……</div></div>
     <div class="extra" id="extra"></div>
@@ -473,7 +473,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     const v = S.view, x = $("extra"); let h = "";
     if (v.deadlines && v.deadlines.length) {
       h += '<div class="card" style="--cc: var(--warn)"><div class="bhead"><h3>近期截止与重要日期</h3></div><ul>' +
-        v.deadlines.map(d => '<li><span class="pill">' + md(d.date) + (d.inDays === 0 ? " 今天" : " · " + d.inDays + " 天后") + "</span> " + esc(d.text) + "</li>").join("") + "</ul></div>";
+        v.deadlines.map(d => '<li><span class="pill">' + md(d.date) + (d.inDays === 0 ? " 当天" : " · 当天后 " + d.inDays + " 天") + "</span> " + esc(d.text) + "</li>").join("") + "</ul></div>";
     }
     if (v.newFiles && v.newFiles.length) {
       h += '<div class="card"><div class="bhead"><h3>F 盘新增资料</h3></div><ul>' + v.newFiles.map(f => "<li><code>" + esc(f) + "</code></li>").join("") + "</ul></div>";
