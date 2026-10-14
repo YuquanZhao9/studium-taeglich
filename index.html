@@ -11,7 +11,7 @@
 <style>
 /* Layout: 昱时-style cool grey desk. Desktop = left rail (dates) | study column (today/tomorrow cards) | sticky PDF pane.
    Phone = top bar + segmented today/tomorrow, PDF opens as a full-screen sheet. Course colours carry through chips and card edges. */
-:root {
+:root { --star: #a86f00; --star-soft: #fff0c2;
   --bg: #f6f7fa; --card: #ffffff; --ink: #2f3342; --muted: #8a8fa0; --line: #e4e7ee;
   --accent: #6474d2; --accent-soft: #edf0fc; --warn: #b7791f; --bad: #d8584f; --on-accent: #ffffff;
   --c-AM: #3b6fd1; --c-SASP: #2f8a4e; --c-MC: #b9800f; --c-ITCL: #8a55c9; --c-AR: #d8584f; --c-iCPS: #6b7280;
@@ -20,12 +20,12 @@
   --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
   --r: 10px; --mtop-h: 48px;
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --star: #f2c14e; --star-soft: #4a3a10;
   --bg: #111217; --card: #1c1d24; --ink: #e8e9ef; --muted: #8e93a4; --line: #2a2c36;
   --accent: #8b98e8; --accent-soft: #262a45; --warn: #e3b34a; --bad: #f07a7d; --on-accent: #111217;
   --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-iCPS: #a3a8b6;
   color-scheme: dark } }
-:root[data-theme="dark"] {
+:root[data-theme="dark"] { --star: #f2c14e; --star-soft: #4a3a10;
   --bg: #111217; --card: #1c1d24; --ink: #e8e9ef; --muted: #8e93a4; --line: #2a2c36;
   --accent: #8b98e8; --accent-soft: #262a45; --warn: #e3b34a; --bad: #f07a7d; --on-accent: #111217;
   --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-iCPS: #a3a8b6;
@@ -137,7 +137,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 .lecture { gap: 0; min-width: 0; }
 .lec, .lec .md { min-width: 0; overflow-wrap: anywhere; }
 .lec .md .f { white-space: pre-wrap; overflow-x: auto; max-width: 100%; }
-.lec { border-left: 3px solid transparent; padding: 8px 10px 8px 12px; margin-left: -12px; border-radius: 0 8px 8px 0; transition: background .15s; }
+.lec { scroll-margin-top: 110px; scroll-margin-bottom: 40px; border-left: 3px solid transparent; padding: 8px 10px 8px 12px; margin-left: -12px; border-radius: 0 8px 8px 0; transition: background .15s; }
 .lec[data-from] { cursor: pointer; }
 .lec[data-from]:hover { background: var(--accent-soft); }
 .lec.here { border-left-color: var(--cc, var(--accent)); }
@@ -148,6 +148,37 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 .lec:hover .ed, .lec .ed:focus-visible { opacity: 1; }
 .lec .pg { font: 500 11px var(--mono); color: var(--cc, var(--accent)); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; cursor: pointer; }
 .lec .md h4 { margin: 4px 0 2px; }
+.lec .starm { color: var(--star); font-size: 13px; }
+.lec.flash { animation: flash 1.6s ease-out; }
+@keyframes flash { 0% { background: var(--star-soft); } 100% { background: transparent; } }
+.page .ptools { position: absolute; top: 6px; right: 6px; display: flex; gap: 4px; opacity: 0; transition: opacity .15s; z-index: 2; }
+.page:hover .ptools, .page .ptools:focus-within { opacity: 1; }
+@media (hover: none) { .page .ptools { opacity: 1; } }
+.page .ptools button { font: 500 12px var(--sans, inherit); background: rgba(255, 255, 255, .94); color: #2a2f3d; border: 1px solid #c9cedb; border-radius: 999px; padding: 2px 9px; cursor: pointer; }
+.page .ptools .st.on { color: #b07800; border-color: #e0a800; }
+.page.star { box-shadow: 0 0 0 3px #e0a800, 0 1px 3px rgba(20, 24, 40, .14); }
+.page.star .no::before { content: "★ "; color: #b07800; }
+.desk .page canvas { cursor: pointer; }
+.starbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--muted); }
+.starbar button { font: 500 12px var(--mono); color: var(--star); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; cursor: pointer; }
+.askfab { position: fixed; right: 18px; bottom: calc(18px + env(safe-area-inset-bottom, 0px)); z-index: 60; font-weight: 600; background: var(--accent); color: #fff; border: 0; border-radius: 999px; padding: 10px 16px; box-shadow: 0 4px 14px rgba(20, 24, 40, .25); cursor: pointer; }
+.ask { position: fixed; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); z-index: 61; width: min(440px, calc(100vw - 32px)); max-height: min(72vh, 680px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 10px 34px rgba(20, 24, 40, .28); }
+.ask .ah { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border-bottom: 1px solid var(--line); }
+.ask .ah b { font-size: 14px; }
+.ask .ah span { color: var(--muted); font-size: 12px; margin-right: auto; }
+.ask .log { overflow-y: auto; padding: 10px 12px; display: grid; gap: 10px; align-content: start; min-width: 0; }
+.ask .msg { min-width: 0; overflow-wrap: anywhere; font-size: 14px; line-height: 1.55; }
+.ask .msg.u { justify-self: end; background: var(--accent-soft); border-radius: 10px; padding: 6px 10px; max-width: 90%; white-space: pre-wrap; }
+.ask .msg.a .md .f { white-space: pre-wrap; overflow-x: auto; }
+.ask .msg .acts { display: flex; gap: 6px; margin-top: 4px; }
+.ask .msg.err { color: var(--warn); font-size: 13px; }
+.ask .foot { border-top: 1px solid var(--line); padding: 8px 12px 10px; display: grid; gap: 6px; }
+.ask .quote { font-size: 12px; color: var(--muted); border-left: 3px solid var(--accent); padding: 2px 8px; max-height: 5.5em; overflow: auto; white-space: pre-wrap; }
+.ask textarea { width: 100%; min-height: 62px; font: 14px/1.45 inherit; padding: 7px 9px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); resize: vertical; }
+.ask .row { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.ask .row .muted { margin-right: auto; font-size: 12px; }
+.ask details { font-size: 12px; color: var(--muted); }
+.ask details input { width: 100%; margin: 4px 0; font: 12px var(--mono); padding: 5px 7px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
 .lec textarea { width: 100%; min-height: 200px; font: 13px/1.5 var(--mono); padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
 .lec .row { display: flex; align-items: center; justify-content: flex-end; gap: 6px; margin-top: 6px; }
 .lec .row .tag { margin-right: auto; }
@@ -208,6 +239,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     <div class="mtop"><div class="brand">Studium täglich</div><select id="dsel" aria-label="选择日期"></select></div>
     <div class="seg" id="seg" role="group" aria-label="当天或次日"></div>
     <div class="dayhead" id="dayhead"></div>
+    <div class="starbar" id="starbar" hidden></div>
     <div class="cards" id="cards"><div class="empty">正在载入……</div></div>
     <div class="extra" id="extra"></div>
   </main>
@@ -216,6 +248,20 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     <div class="vhead"><span class="vt" id="vt">资料合集</span><span class="vp" id="vp"></span><button class="tool" id="trbtn" type="button" aria-pressed="false" hidden>中文对照</button><button class="tool vclose" id="vclose" type="button">关闭</button></div>
     <div class="pages" id="pages"><p class="muted">选一节课的资料，在这里翻看。</p></div>
   </aside>
+  <button class="askfab" id="askfab" type="button">问 Claude</button>
+  <section class="ask" id="ask" hidden aria-label="快速提问">
+    <div class="ah"><b>问 Claude</b><span id="askctx"></span><button class="tool" id="asknew" type="button">新对话</button><button class="tool" id="askx" type="button">关闭</button></div>
+    <div class="log" id="asklog"><p class="muted">在课件上点「问」，或者先选中一段文字再点「问 Claude」，Claude 会带着这一页的课件、翻译和带读来回答。</p></div>
+    <div class="foot">
+      <div class="quote" id="askquote" hidden></div>
+      <textarea id="askq" placeholder="想问这一页的什么？（Ctrl+Enter 发送）"></textarea>
+      <div class="row"><span class="muted" id="askst"></span><button class="tool" id="askcopy" type="button">复制问题</button><button class="tool primary" id="asksend" type="button">发送</button></div>
+      <details id="akbox"><summary id="aksum">设置 Claude API key（只存在这台设备的浏览器里）</summary>
+        <input id="akey" type="password" autocomplete="off" placeholder="sk-ant-...">
+        <div class="row"><span class="muted">按用量计费，在 console.anthropic.com 创建。没有 key 时可以点「复制问题」粘贴到 Claude 里问。</span><button class="tool" id="akclear" type="button">清除</button><button class="tool primary" id="aksave" type="button">保存</button></div>
+      </details>
+    </div>
+  </section>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
@@ -225,7 +271,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   const $ = id => document.getElementById(id);
   const WD = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
   const desktopMQ = window.matchMedia("(min-width: 901px) and (pointer: fine)");
-  const S = { manifest: [], date: null, view: null, dayIdx: 0, pdf: null, pdfFile: null, pageBoxes: [], explain: {}, notes: {}, db: null, editing: null, loadToken: 0 };
+  const S = { manifest: [], date: null, view: null, dayIdx: 0, pdf: null, pdfFile: null, pageBoxes: [], explain: {}, notes: {}, stars: {}, curPage: 1, db: null, editing: null, loadToken: 0 };
 
   const md = d => { const x = new Date(d + "T12:00:00"); return (x.getMonth() + 1) + "/" + x.getDate(); };
   const wd = d => WD[new Date(d + "T12:00:00").getDay()];
@@ -325,6 +371,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     const n = d.items.filter(x => !x.self && !x.note).length;
     $("dayhead").innerHTML = "<h1>" + esc(d.label) + " · " + md(d.date) + " " + esc(d.weekday) + "</h1><p>" +
       (n ? n + " 节课 / 活动" : "没有课") + (v.pages ? " · 资料合集 " + v.pages + " 页" : "") + "</p>";
+    renderStarbar();
     const cards = $("cards"); cards.innerHTML = "";
     if (d.reminder) cards.insertAdjacentHTML("beforeend", '<div class="remind">📝 ' + esc(d.reminder) + "</div>");
     if (d.message) cards.insertAdjacentHTML("beforeend", '<div class="empty">' + esc(d.message) + "</div>");
@@ -419,7 +466,8 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
           if (await saveDoc("explain", it.key, { md: all.map(x => x.md).filter(Boolean).join("\n\n"), updatedAt: Date.now() })) { S.editing = null; render(); }
         };
       } else {
-        const pg = c.at != null && base ? '<button class="pg" type="button" title="在课件里打开">第 ' + (base + c.at - 1) + (c.to > c.at ? "–" + (base + c.to - 1) : "") + " 页</button>" : "";
+        const pg = c.at != null && base ? '<button class="pg" type="button" title="在课件里打开">第 ' + (base + c.at - 1) + (c.to > c.at ? "–" + (base + c.to - 1) : "") + " 页</button>" +
+          (starPages().some(n => n >= base + c.at - 1 && n <= base + c.to - 1) ? '<span class="starm" title="有标星的重点页">★</span>' : "") : "";
         row.innerHTML = '<div class="lhead">' + pg + (desktopMQ.matches ? '<button class="tool ed" type="button">编辑</button>' : "") + '</div><div class="md">' + renderMd(c.md) + "</div>";
         const eb = row.querySelector(".ed"); if (eb) eb.onclick = e => { e.stopPropagation(); if (!canEdit()) return needEdit(); S.editing = eid; render(); };
         if (row.dataset.from) row.addEventListener("click", e => { if (e.target.closest(".ed, a")) return; jumpTo(+row.dataset.from, b.closest(".card"), row); });
@@ -446,6 +494,167 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   function markPage(n) {
     document.querySelectorAll(".lec[data-from]").forEach(r => r.classList.toggle("here", n >= +r.dataset.from && n <= +r.dataset.to));
   }
+
+  // ---------- reverse jump: slide -> walkthrough ----------
+  function pageOwner(n) {
+    if (!S.view) return null;
+    for (let di = 0; di < S.view.days.length; di++) for (const it of S.view.days[di].items) {
+      if (!it.sections || !it.sections.length) continue;
+      const base = it.sections[0].page, total = it.sections.reduce((a, x) => a + x.count, 0);
+      if (n >= base && n < base + total) return { di, it, k: n - base + 1 };
+    }
+    return null;
+  }
+  function toNotes(n) {
+    const o = pageOwner(n); if (!o) return;
+    if (o.di !== S.dayIdx) { S.dayIdx = o.di; S.editing = null; render(); }
+    const rows = [...document.querySelectorAll(".lec[data-from]")].filter(r => r.dataset.key === o.it.key);
+    const row = rows.find(r => n >= +r.dataset.from && n <= +r.dataset.to) ||
+      document.querySelector('.card[data-key="' + o.it.key.replace(/"/g, "") + '"]');
+    if (!row) return;
+    if (!desktopMQ.matches) $("viewer").classList.remove("open");
+    document.querySelectorAll(".lec.on").forEach(r => r.classList.remove("on"));
+    markPage(n);
+    setTimeout(() => {
+      row.scrollIntoView({ block: "center", behavior: "smooth" });
+      if (row.classList.contains("lec")) { row.classList.add("on"); row.classList.remove("flash"); void row.offsetWidth; row.classList.add("flash"); }
+    }, desktopMQ.matches ? 0 : 250);
+  }
+
+  // ---------- stars ----------
+  const lsStar = d => "st-star-" + d;
+  function starPages() {
+    if (!S.date) return [];
+    if (S.db) return ((S.stars[S.date] || {}).pages || []).slice();
+    try { return JSON.parse(localStorage.getItem(lsStar(S.date)) || "[]"); } catch (e) { return []; }
+  }
+  function applyStars() {
+    const set = new Set(starPages());
+    S.pageBoxes.forEach((box, n) => { if (!box) return; box.classList.toggle("star", set.has(n)); const b = box.querySelector(".st"); if (b) { b.classList.toggle("on", set.has(n)); b.textContent = set.has(n) ? "★ 重点" : "☆"; } });
+  }
+  async function toggleStar(n) {
+    const set = new Set(starPages());
+    set.has(n) ? set.delete(n) : set.add(n);
+    const pages = [...set].sort((a, b) => a - b);
+    try { localStorage.setItem(lsStar(S.date), JSON.stringify(pages)); } catch (e) {}
+    if (S.db) { S.stars[S.date] = { pages, updatedAt: Date.now() }; await saveDoc("stars", S.date, { pages, updatedAt: Date.now() }); }
+    applyStars(); renderStarbar();
+    document.querySelectorAll(".lec[data-from]").forEach(r => {
+      const has = pages.some(p => p >= +r.dataset.from && p <= +r.dataset.to);
+      const m = r.querySelector(".starm"); const head = r.querySelector(".lhead");
+      if (has && !m && head) head.querySelector(".pg")?.insertAdjacentHTML("afterend", '<span class="starm" title="有标星的重点页">★</span>');
+      if (!has && m) m.remove();
+    });
+  }
+  function renderStarbar() {
+    const bar = $("starbar"); const pages = starPages();
+    bar.hidden = !pages.length; if (!pages.length) { bar.innerHTML = ""; return; }
+    bar.innerHTML = "<span>★ 重点页</span>" + pages.map(n => { const o = pageOwner(n); return '<button type="button" data-n="' + n + '">' + (o ? esc(o.it.course) + " " : "") + "第 " + n + " 页</button>"; }).join("");
+    bar.querySelectorAll("button").forEach(b => b.onclick = () => jumpTo(+b.dataset.n, null, null));
+  }
+
+  // ---------- quick ask (Claude API, user's own key) ----------
+  const ASK = { conv: [], page: null, quote: "", busy: false, client: null, key: null };
+  const akey = () => { try { return localStorage.getItem("st-ak") || ""; } catch (e) { return ""; } };
+  function askStatus(t) { $("askst").textContent = t || ""; }
+  function openAsk(n) {
+    const sel = String(window.getSelection ? window.getSelection() : "").trim();
+    ASK.page = n || S.curPage || 1;
+    if (sel) ASK.quote = sel.slice(0, 1500);
+    const o = pageOwner(ASK.page);
+    $("askctx").textContent = (o ? o.it.course + " " + o.it.kind + " · " : "") + "第 " + ASK.page + " 页";
+    $("askquote").hidden = !ASK.quote; $("askquote").textContent = ASK.quote ? "引用：" + ASK.quote : "";
+    $("aksum").textContent = akey() ? "Claude API key 已设置（只存在这台设备）" : "设置 Claude API key（只存在这台设备的浏览器里）";
+    $("ask").hidden = false; $("askfab").hidden = true;
+    setTimeout(() => $("askq").focus(), 0);
+  }
+  async function pageContext(n) {
+    const o = pageOwner(n); let text = "";
+    try { const pg = await S.pdf.getPage(n); const tc = await pg.getTextContent(); text = tc.items.map(x => x.str).join(" ").replace(/\s+/g, " ").trim().slice(0, 6000); } catch (e) {}
+    const parts = ["【课件第 " + n + " 页的文字】\n" + (text || "（这一页没有可提取的文字，可能是图片）")];
+    if (o) {
+      const tr = (o.it.translation || {})[String(o.k)]; if (tr) parts.push("【这一页的中文翻译】\n" + tr);
+      const ch = chunks(currentExplain(o.it).text).find(c => c.at != null && o.k >= c.at && o.k <= c.to); if (ch) parts.push("【这一页的老师带读】\n" + ch.md);
+      parts.unshift("课程：" + o.it.courseName + "（" + o.it.course + "）· " + o.it.kind + (o.it.topic ? "\n本节主题：" + o.it.topic : ""));
+    }
+    return parts.join("\n\n");
+  }
+  async function buildUserText(q) {
+    const ctx = await pageContext(ASK.page);
+    return ctx + (ASK.quote ? "\n\n【我选中的这段】\n" + ASK.quote : "") + "\n\n【我的问题】\n" + q;
+  }
+  function addMsg(cls, html) { const d = document.createElement("div"); d.className = "msg " + cls; d.innerHTML = html; const log = $("asklog"); log.querySelector("p.muted")?.remove(); log.appendChild(d); log.scrollTop = log.scrollHeight; return d; }
+  async function getClient() {
+    const k = akey(); if (!k) return null;
+    if (ASK.client && ASK.key === k) return ASK.client;
+    const mod = await import("https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.129.0/+esm");
+    const Anthropic = mod.default || mod.Anthropic;
+    ASK.client = new Anthropic({ apiKey: k, dangerouslyAllowBrowser: true }); ASK.key = k;
+    return ASK.client;
+  }
+  const ASK_SYSTEM = "你是斯图加特大学硕士课程的助教。学生正在网页上看某节课的课件，会把那一页的课件文字、中文翻译、老师带读和问题一起发给你。用中文回答，先直接回答问题，再讲清道理；需要时举一个小算例。只依据课件内容和公认的专业知识，课件里没有、你也不确定的要说明。可以用 Markdown 的列表和加粗，公式用 Unicode 写在单独一行，不要用 LaTeX。";
+  async function sendAsk() {
+    const q = $("askq").value.trim(); if (!q || ASK.busy) return;
+    const client = await getClient().catch(e => { addMsg("err", "Claude 的程序库没载入：" + esc(e.message)); return undefined; });
+    if (client === undefined) return;
+    if (!client) { $("akbox").open = true; askStatus("先设置 API key，或者点「复制问题」"); return; }
+    ASK.busy = true; $("asksend").disabled = true; askStatus("Claude 正在回答……");
+    addMsg("u", esc(q) + (ASK.quote ? '<div class="quote">' + esc(ASK.quote) + "</div>" : ""));
+    const userText = await buildUserText(q);
+    ASK.conv.push({ role: "user", content: userText });
+    $("askq").value = ""; const quoteUsed = ASK.quote; ASK.quote = ""; $("askquote").hidden = true;
+    const box = addMsg("a", '<div class="md"><p class="muted">思考中……</p></div>');
+    let text = "";
+    try {
+      const stream = client.beta.messages.stream({
+        model: "claude-opus-5-5", max_tokens: 16000,
+        betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
+        system: ASK_SYSTEM, messages: ASK.conv,
+      });
+      for await (const ev of stream) {
+        if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
+          text += ev.delta.text; box.querySelector(".md").innerHTML = renderMd(text); $("asklog").scrollTop = $("asklog").scrollHeight;
+        }
+      }
+      const final = await stream.finalMessage();
+      if (final.stop_reason === "refusal") { box.insertAdjacentHTML("beforeend", '<div class="msg err">这个问题 Claude 没有回答（被安全规则拦下），换个问法试试。</div>'); ASK.conv.pop(); }
+      else {
+        ASK.conv.push({ role: "assistant", content: final.content });
+        if (final.stop_reason === "max_tokens") box.insertAdjacentHTML("beforeend", '<p class="muted">（回答太长，被截断了）</p>');
+        const acts = document.createElement("div"); acts.className = "acts";
+        acts.innerHTML = '<button class="tool" type="button" data-a="note">存进笔记</button><button class="tool" type="button" data-a="copy">复制回答</button>';
+        acts.querySelector('[data-a="copy"]').onclick = () => copyText(text);
+        acts.querySelector('[data-a="note"]').onclick = async e => {
+          const o = pageOwner(ASK.page); if (!o) return;
+          const cur = (S.notes[o.it.key] || {}).text || "";
+          const add = "**问（第 " + ASK.page + " 页）：**" + q + (quoteUsed ? "\n> " + quoteUsed.replace(/\n/g, " ") : "") + "\n**Claude：**" + text;
+          if (!canEdit()) { copyText(add); e.target.textContent = "已复制（这里不能存，粘进笔记）"; return needEdit(); }
+          await saveNote(o.it.key, (cur ? cur + "\n\n" : "") + add); S.notes[o.it.key] = { text: (cur ? cur + "\n\n" : "") + add, updatedAt: Date.now() };
+          e.target.textContent = "已存进笔记"; render();
+        };
+        box.appendChild(acts);
+      }
+      askStatus("");
+    } catch (e) {
+      ASK.conv.pop();
+      const st = e && e.status;
+      askStatus("");
+      box.innerHTML = '<div class="msg err">' + (st === 401 ? "API key 无效，检查一下设置。" : st === 429 ? "请求太频繁或额度用完，稍后再试。" : st === 400 ? "请求被拒绝：" + esc(e.message) : "没连上 Claude：" + esc(e.message || e)) + "</div>";
+    } finally { ASK.busy = false; $("asksend").disabled = false; }
+  }
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); askStatus("已复制"); }
+    catch (e) { const ta = $("askq"); ta.value = t; ta.select(); askStatus("复制不了，已放进输入框，按 Ctrl+C"); }
+  }
+  $("askfab").onclick = () => openAsk(S.curPage);
+  $("askx").onclick = () => { $("ask").hidden = true; $("askfab").hidden = false; };
+  $("asknew").onclick = () => { ASK.conv = []; $("asklog").innerHTML = '<p class="muted">新对话。问题会带上当前这一页的课件、翻译和带读。</p>'; };
+  $("asksend").onclick = sendAsk;
+  $("askq").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendAsk(); } });
+  $("askcopy").onclick = async () => { const q = $("askq").value.trim(); if (!q) return askStatus("先写问题"); copyText(await buildUserText(q)); };
+  $("aksave").onclick = () => { try { localStorage.setItem("st-ak", $("akey").value.trim()); } catch (e) {} $("akey").value = ""; ASK.client = null; $("akbox").open = false; $("aksum").textContent = akey() ? "Claude API key 已设置（只存在这台设备）" : "设置 Claude API key（只存在这台设备的浏览器里）"; askStatus(akey() ? "已保存" : ""); };
+  $("akclear").onclick = () => { try { localStorage.removeItem("st-ak"); } catch (e) {} ASK.client = null; $("aksum").textContent = "设置 Claude API key（只存在这台设备的浏览器里）"; askStatus("已清除"); };
+  document.body.classList.toggle("desk", desktopMQ.matches);
 
   function notesBlock(it) {
     const b = document.createElement("div"); b.className = "block";
@@ -495,15 +704,15 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   function setSync(on, txt) { $("dot").classList.toggle("on", on); $("synctxt").textContent = txt; }
   async function pull() {
     const r = await fetch(API + "?ref=" + DATA_BRANCH + "&t=" + Date.now(), { headers: hdr(), cache: "no-store" });
-    if (r.status === 404) { dataSha = null; return { explain: {}, notes: {} }; }
+    if (r.status === 404) { dataSha = null; return { explain: {}, notes: {}, stars: {} }; }
     if (!r.ok) throw new Error("GitHub " + r.status);
     const j = await r.json(); dataSha = j.sha;
     const d = JSON.parse(new TextDecoder().decode(await decryptBytes(b64.dec(j.content.replace(/\s/g, "")))));
-    return { explain: d.explain || {}, notes: d.notes || {} };
+    return { explain: d.explain || {}, notes: d.notes || {}, stars: d.stars || {} };
   }
   async function refresh() {
     try {
-      const d = await pull(); S.explain = d.explain; S.notes = d.notes;
+      const d = await pull(); S.explain = d.explain; S.notes = d.notes; S.stars = d.stars;
       S.db = tok() && desktopMQ.matches ? true : null;
       $("ghsum").textContent = tok() ? "编辑设置" : "✏️ 开启在线编辑"; if (tok()) { $("ghbox").classList.remove("need"); $("ghmsg").hidden = true; }
       setSync(true, S.db ? "已同步 · 可编辑" : (tok() ? "已同步" : "已同步 · 只读"));
@@ -532,7 +741,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
           const r = await fetch(API, { method: "PUT", headers: Object.assign(hdr(), { "Content-Type": "application/json" }), body: JSON.stringify(body) });
           if (r.status === 409 || r.status === 422) continue;
           if (!r.ok) { setSync(false, r.status === 401 || r.status === 403 ? "令牌无效或没有写权限" : "保存失败 " + r.status); return false; }
-          dataSha = (await r.json()).content.sha; S.explain = cur.explain; S.notes = cur.notes; setSync(true, "已同步 · 可编辑");
+          dataSha = (await r.json()).content.sha; S.explain = cur.explain; S.notes = cur.notes; S.stars = cur.stars; setSync(true, "已同步 · 可编辑");
           return true;
         } catch (e) { setSync(false, "保存失败：" + e.message); }
       }
@@ -571,14 +780,19 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     const base = (await pdf.getPage(1)).getViewport({ scale: 1 });
     if (observer) observer.disconnect(); if (pageObs) pageObs.disconnect();
     observer = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) { observer.unobserve(en.target); renderPage(pdf, en.target, token); } }), { root: pages, rootMargin: "900px 0px" });
-    pageObs = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) { $("vp").textContent = en.target.dataset.n + " / " + pdf.numPages; markPage(+en.target.dataset.n); } }), { root: pages, threshold: 0.5 });
+    pageObs = new IntersectionObserver(es => es.forEach(en => { if (en.isIntersecting) { $("vp").textContent = en.target.dataset.n + " / " + pdf.numPages; S.curPage = +en.target.dataset.n; markPage(+en.target.dataset.n); } }), { root: pages, threshold: 0.5 });
     for (let i = 1; i <= pdf.numPages; i++) {
       if (starts[i]) { const s = document.createElement("div"); s.className = "psec"; s.textContent = starts[i]; pages.appendChild(s); }
       const box = document.createElement("div"); box.className = "page"; box.dataset.n = i; box.style.aspectRatio = base.width + " / " + base.height;
-      box.innerHTML = '<span class="no">' + i + "</span>";
+      box.innerHTML = '<span class="no">' + i + '</span><div class="ptools"><button class="st" type="button" title="标记为重点页">☆</button><button class="ak" type="button" title="问 Claude 这一页">问</button><button class="bk" type="button" title="跳到这一页的带读">带读</button></div>';
+      const n = i;
+      box.querySelector(".st").onclick = e => { e.stopPropagation(); toggleStar(n); };
+      box.querySelector(".ak").onclick = e => { e.stopPropagation(); openAsk(n); };
+      box.querySelector(".bk").onclick = e => { e.stopPropagation(); toNotes(n); };
+      box.addEventListener("click", e => { if (!desktopMQ.matches || e.target.closest(".ptools")) return; if (String(window.getSelection ? window.getSelection() : "").trim()) return; toNotes(n); });
       pages.appendChild(box); S.pageBoxes[i] = box; observer.observe(box); pageObs.observe(box);
     }
-    placeNotes();
+    placeNotes(); applyStars(); renderStarbar();
     $("vt").textContent = "资料合集 · " + md(S.date) + " " + wd(S.date);
     $("vp").textContent = "1 / " + pdf.numPages;
   }
