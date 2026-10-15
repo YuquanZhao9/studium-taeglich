@@ -11,7 +11,7 @@
 <style>
 /* Layout: 昱时-style cool grey desk. Desktop = left rail (dates) | study column (today/tomorrow cards) | sticky PDF pane.
    Phone = top bar + segmented today/tomorrow, PDF opens as a full-screen sheet. Course colours carry through chips and card edges. */
-:root { --star: #a86f00; --star-soft: #fff0c2;
+:root { --star: #a86f00; --star-soft: #fff0c2; --hl-term: #1d5fae; --hl-key: #7a3fb0; --hl-key-bg: #f1e8fb; --hl-warn: #b4232a; --hl-warn-bg: #fdecec; --hl-exam: #8a5a00; --hl-exam-bg: #fff4d6; --hl-ok: #237a45;
   --bg: #f6f7fa; --card: #ffffff; --ink: #2f3342; --muted: #8a8fa0; --line: #e4e7ee;
   --accent: #6474d2; --accent-soft: #edf0fc; --warn: #b7791f; --bad: #d8584f; --on-accent: #ffffff;
   --c-AM: #3b6fd1; --c-SASP: #2f8a4e; --c-MC: #b9800f; --c-ITCL: #8a55c9; --c-AR: #d8584f; --c-iCPS: #6b7280;
@@ -20,12 +20,12 @@
   --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
   --r: 10px; --mtop-h: 48px;
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --star: #f2c14e; --star-soft: #4a3a10;
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --star: #f2c14e; --star-soft: #4a3a10; --hl-term: #7fb4ff; --hl-key: #d3a8ff; --hl-key-bg: #352646; --hl-warn: #ff8a8a; --hl-warn-bg: #4a2224; --hl-exam: #f2c14e; --hl-exam-bg: #40330f; --hl-ok: #6fd39a;
   --bg: #111217; --card: #1c1d24; --ink: #e8e9ef; --muted: #8e93a4; --line: #2a2c36;
   --accent: #8b98e8; --accent-soft: #262a45; --warn: #e3b34a; --bad: #f07a7d; --on-accent: #111217;
   --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-iCPS: #a3a8b6;
   color-scheme: dark } }
-:root[data-theme="dark"] { --star: #f2c14e; --star-soft: #4a3a10;
+:root[data-theme="dark"] { --star: #f2c14e; --star-soft: #4a3a10; --hl-term: #7fb4ff; --hl-key: #d3a8ff; --hl-key-bg: #352646; --hl-warn: #ff8a8a; --hl-warn-bg: #4a2224; --hl-exam: #f2c14e; --hl-exam-bg: #40330f; --hl-ok: #6fd39a;
   --bg: #111217; --card: #1c1d24; --ink: #e8e9ef; --muted: #8e93a4; --line: #2a2c36;
   --accent: #8b98e8; --accent-soft: #262a45; --warn: #e3b34a; --bad: #f07a7d; --on-accent: #111217;
   --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-iCPS: #a3a8b6;
@@ -207,6 +207,25 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 .pqa .q .quote { font-weight: 400; color: var(--muted); font-size: 13px; }
 .ask .paste { display: grid; gap: 6px; margin-top: 6px; }
 .ask .paste textarea { width: 100%; min-height: 90px; font: 13px/1.5 var(--ui); padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.md strong { color: var(--hl-key); background: var(--hl-key-bg); border-radius: 3px; padding: 0 2px; font-weight: 600; }
+.md .term { color: var(--hl-term); font-weight: 600; }
+.md .tag-inf { color: var(--muted); font-style: italic; font-size: .92em; }
+.md li.hl-warn, .md p.hl-warn { background: var(--hl-warn-bg); color: var(--hl-warn); border-radius: 6px; padding: 2px 8px; list-style-position: inside; }
+.md li.hl-exam, .md p.hl-exam { background: var(--hl-exam-bg); border-radius: 6px; padding: 2px 8px; list-style-position: inside; }
+.md h4 .core { font: 600 11px var(--ui); color: var(--hl-exam); background: var(--hl-exam-bg); border-radius: 999px; padding: 1px 7px; margin-left: 6px; vertical-align: 2px; }
+.hlegend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12px; color: var(--muted); }
+.hlegend span { display: inline-flex; align-items: center; gap: 4px; }
+.hlegend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; }
+.segx { display: grid; gap: 6px; margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+.segx .rate { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; font-size: 12px; color: var(--muted); }
+.segx .rate button { font: 500 12px var(--ui); border: 1px solid var(--line); background: var(--card); color: var(--ink); border-radius: 999px; padding: 2px 10px; cursor: pointer; }
+.segx .rate button[aria-pressed="true"][data-v="ok"] { background: var(--hl-ok); border-color: var(--hl-ok); color: #fff; }
+.segx .rate button[aria-pressed="true"][data-v="half"] { background: var(--hl-exam); border-color: var(--hl-exam); color: #fff; }
+.segx .rate button[aria-pressed="true"][data-v="no"] { background: var(--hl-warn); border-color: var(--hl-warn); color: #fff; }
+.segx .rate .sst { margin-left: auto; font: 11px var(--mono); }
+.segx textarea { width: 100%; min-height: 38px; resize: vertical; font: 13px/1.5 var(--ui); padding: 6px 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); field-sizing: content; max-height: 260px; }
+.nobar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 13px; color: var(--hl-warn); }
+.nobar button { font: 500 12px var(--mono); color: var(--hl-warn); background: var(--card); border: 1px solid var(--line); border-radius: 999px; padding: 2px 9px; cursor: pointer; }
 .ptrans { background: var(--accent-soft); border-radius: 6px; padding: 8px 14px 10px; font-size: 14px; margin-top: -6px; }
 .ptrans .pn-h { font: 500 11px var(--mono); letter-spacing: .06em; color: var(--accent); margin-bottom: 2px; }
 .ptrans .md h4 { margin: 2px 0 4px; font-size: 14px; }
@@ -264,6 +283,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     <div class="navs" id="navs"><div class="seg" id="seg" role="group" aria-label="当天或次日"></div><nav class="cjump" id="cjump" aria-label="跳到某门课"></nav></div>
     <div class="dayhead" id="dayhead"></div>
     <div class="starbar" id="starbar" hidden></div>
+    <div class="nobar" id="nobar" hidden></div>
     <details class="quick mquick" id="mquick"><summary>快速笔记</summary><textarea id="mqta" placeholder="随手记：疑问、要点、待办……自动保存"></textarea><span class="qst" id="mqst"></span></details>
     <div class="cards" id="cards"><div class="empty">正在载入……</div></div>
     <div class="extra" id="extra"></div>
@@ -304,14 +324,19 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   const wd = d => WD[new Date(d + "T12:00:00").getDay()];
   const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const cssId = k => k.replace(/[^a-zA-Z0-9]/g, "_");
-  function inline(s) { return esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>"); }
+  function inline(s) {
+    return esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/([\u4e00-\u9fa5A-Za-z₀-₉]{1,12})（([A-Za-z][A-Za-z0-9 ,.'\-–]{1,60})）/g, '<span class="term">$1</span>（$2）')
+      .replace(/（(推断|讲义之外|这步是我补的|补充)）/g, '<span class="tag-inf">（$1）</span>');
+  }
+  const hlClass = t => /^\s*(\*\*)?易错|易错[：:]/.test(t) ? ' class="hl-warn"' : /考试|常考|必考|必记|会考|往年|简答题/.test(t) ? ' class="hl-exam"' : "";
   function renderMd(text) {
     const out = []; let list = null, para = [];
-    const flushP = () => { if (para.length) { out.push("<p>" + para.map(inline).join("<br>") + "</p>"); para = []; } };
-    const flushL = () => { if (list) { out.push("<ul>" + list.map(li => "<li>" + inline(li) + "</li>").join("") + "</ul>"); list = null; } };
+    const flushP = () => { if (para.length) { out.push("<p" + hlClass(para.join(" ")) + ">" + para.map(inline).join("<br>") + "</p>"); para = []; } };
+    const flushL = () => { if (list) { out.push("<ul>" + list.map(li => "<li" + hlClass(li) + ">" + inline(li) + "</li>").join("") + "</ul>"); list = null; } };
     for (const raw of String(text || "").split("\n")) {
       const line = raw.trimEnd();
-      if (/^#{2,4}\s/.test(line)) { flushP(); flushL(); out.push("<h4>" + inline(line.replace(/^#+\s/, "").replace(/^@\d+(\s*[-–]\s*\d+)?\s*/, "").replace(/\s+@\d+(-\d+)?\s*$/, "")) + "</h4>"); }
+      if (/^#{2,4}\s/.test(line)) { flushP(); flushL(); out.push("<h4>" + inline(line.replace(/^#+\s/, "").replace(/^@\d+(\s*[-–]\s*\d+)?\s*/, "").replace(/\s+@\d+(-\d+)?\s*$/, "")).replace(/（(核心|重点)）/g, '<span class="core">$1</span>') + "</h4>"); }
       else if (/^\s*[-*]\s/.test(line)) { flushP(); (list = list || []).push(line.replace(/^\s*[-*]\s/, "")); }
       else if (/^>\s?/.test(line)) { flushP(); flushL(); out.push('<span class="f">' + esc(line.replace(/^>\s?/, "")) + "</span>"); }
       else if (!line.trim()) { flushP(); flushL(); }
@@ -416,6 +441,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     placeNotes();
     renderJump(d);
     syncQuick();
+    renderNobar();
   }
 
   // ---------- notes: every save also lands in this browser with a timestamp; the newer of local/remote wins ----------
@@ -591,7 +617,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     const base = it.sections.length ? it.sections[0].page : 0;
     b.className = "block lecture";
     b.innerHTML = '<div class="bhead"><h3>老师带读' + (ex.edited ? " · 已改过" : "") + "</h3>" + (desktopMQ.matches ? '<button class="tool" type="button" data-a="edit">整篇编辑</button>' : "") + "</div>" +
-      (ex.text ? "" : '<p class="muted">这节课的带读还没写好，早上的推送会补上。</p>');
+      (ex.text ? '<div class="hlegend"><span><i style="background:var(--hl-term)"></i>术语</span><span><i style="background:var(--hl-key)"></i>关键词</span><span><i style="background:var(--hl-exam)"></i>考点/重点</span><span><i style="background:var(--hl-warn)"></i>易错</span><span><i style="background:var(--cc, var(--accent))"></i>公式</span></div>' : '<p class="muted">这节课的带读还没写好，晚上的推送会补上。</p>');
     chunks(ex.text).forEach((c, i) => {
       const eid = "c:" + it.key + ":" + i;
       const row = document.createElement("section"); row.className = "lec" + (c.at == null ? " plain" : "");
@@ -609,7 +635,8 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
           (starPages().some(n => n >= base + c.at - 1 && n <= base + c.to - 1) ? '<span class="starm" title="有标星的重点页">★</span>' : "") : "";
         row.innerHTML = '<div class="lhead">' + pg + (desktopMQ.matches ? '<button class="tool ed" type="button">编辑</button>' : "") + '</div><div class="md">' + renderMd(c.md) + "</div>";
         const eb = row.querySelector(".ed"); if (eb) eb.onclick = e => { e.stopPropagation(); if (!canEdit()) return needEdit(); S.editing = eid; render(); };
-        if (row.dataset.from) row.addEventListener("click", e => { if (e.target.closest(".ed, a")) return; jumpTo(+row.dataset.from, b.closest(".card"), row); });
+        if (row.dataset.from) row.addEventListener("click", e => { if (e.target.closest(".ed, a, .segx")) return; jumpTo(+row.dataset.from, b.closest(".card"), row); });
+        if (c.at != null) row.appendChild(segBox(it, c));
       }
       b.appendChild(row);
     });
@@ -617,6 +644,43 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     return b;
   }
 
+  // ---------- per-segment note + rating (always open; saved like notes: this browser + sync when editing is on) ----------
+  const RATES = [["ok", "懂了"], ["half", "有点懂"], ["no", "没懂"]];
+  const segKey = (it, at) => "seg-" + it.key + "-" + at, rateKey = (it, at) => "rate-" + it.key + "-" + at;
+  const segTimers = {};
+  async function saveSmall(key, text, st) {
+    const at = Date.now(); setLocalNote(key, text, at);
+    if (!S.db) { if (st) st.textContent = "已存在本机"; return; }
+    if (st) st.textContent = "保存中";
+    const ok = await saveDoc("notes", key, { text, updatedAt: at }); if (ok) S.notes[key] = { text, updatedAt: at };
+    if (st) st.textContent = ok ? "已同步" : "已存在本机";
+  }
+  function segBox(it, c) {
+    const w = document.createElement("div"); w.className = "segx";
+    const rk = rateKey(it, c.at), nk = segKey(it, c.at), cur = noteText(rk);
+    w.innerHTML = '<div class="rate"><span>这段：</span>' + RATES.map(([v, l]) => '<button type="button" data-v="' + v + '" aria-pressed="' + (cur === v) + '">' + l + "</button>").join("") + '<span class="sst"></span></div><textarea rows="1" placeholder="这一段的笔记，直接写，自动保存"></textarea>';
+    const st = w.querySelector(".sst"), ta = w.querySelector("textarea");
+    ta.value = noteText(nk); healNote(nk); healNote(rk);
+    w.querySelectorAll(".rate button").forEach(bt => bt.onclick = () => {
+      const v = noteText(rk) === bt.dataset.v ? "" : bt.dataset.v;
+      w.querySelectorAll(".rate button").forEach(x => x.setAttribute("aria-pressed", x.dataset.v === v ? "true" : "false"));
+      saveSmall(rk, v, st).then(renderNobar);
+    });
+    ta.addEventListener("input", () => { st.textContent = "未保存"; clearTimeout(segTimers[nk]); segTimers[nk] = setTimeout(() => saveSmall(nk, ta.value, st), 1000); });
+    ta.addEventListener("blur", () => { clearTimeout(segTimers[nk]); if (ta.value !== noteText(nk)) saveSmall(nk, ta.value, st); });
+    return w;
+  }
+  // segments rated 没懂 on the shown day, as a review list
+  function renderNobar() {
+    const bar = $("nobar"); if (!bar || !S.view) return;
+    const d = S.view.days[S.dayIdx]; const hits = [];
+    d.items.forEach(it => { if (it.type !== "session" || !it.sections || !it.sections.length) return; const base = it.sections[0].page;
+      chunks(currentExplain(it).text).forEach(c => { if (c.at != null && noteText(rateKey(it, c.at)) === "no") hits.push({ it, c, page: base + c.at - 1 }); }); });
+    bar.hidden = !hits.length; if (!hits.length) { bar.innerHTML = ""; return; }
+    bar.innerHTML = "<span>✗ 没懂的段落</span>" + hits.map((h, i) => '<button type="button" data-i="' + i + '">' + esc(h.it.course) + " 第 " + h.page + " 页</button>").join("");
+    bar.querySelectorAll("button").forEach(bt => bt.onclick = () => { const h = hits[+bt.dataset.i]; const row = [...document.querySelectorAll(".lec[data-from]")].find(r => r.dataset.key === h.it.key && +r.dataset.from === h.page);
+      if (row) row.scrollIntoView({ block: "center", behavior: "smooth" }); jumpTo(h.page, row && row.closest(".card"), row); });
+  }
   function jumpTo(page, cardEl, row) {
     document.querySelectorAll(".card.active").forEach(c => c.classList.remove("active"));
     if (cardEl) cardEl.classList.add("active");
