@@ -418,24 +418,47 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     syncQuick();
   }
 
-  // ---------- quick note (one per date; synced with notes when editing is on, else this browser) ----------
-  const qKey = () => "quick-" + S.date;
-  function quickText() {
-    const r = (S.notes[qKey()] || {}).text;
-    if (r != null) return r;
-    try { return localStorage.getItem("st-" + qKey()) || ""; } catch (e) { return ""; }
+  // ---------- notes: every save also lands in this browser with a timestamp; the newer of local/remote wins ----------
+  function localNote(key) {
+    try { const v = localStorage.getItem("st-nl-" + key); if (v) return JSON.parse(v); } catch (e) {}
+    if (key.startsWith("quick-")) { const old = lsg("st-" + key); if (old) return { text: old, updatedAt: 0, legacy: true }; }
+    return null;
   }
+  function setLocalNote(key, text, at) { try { localStorage.setItem("st-nl-" + key, JSON.stringify({ text, updatedAt: at })); } catch (e) {} }
+  function noteText(key) {
+    const r = S.notes[key], l = localNote(key);
+    if (!l) return r ? r.text || "" : "";
+    if (!r) return l.text;
+    const rt = r.text || "";
+    if (l.legacy) {  // pre-fix copy without a timestamp: never drop either side
+      if (!l.text || l.text === rt || rt.includes(l.text)) return rt;
+      if (!rt || l.text.includes(rt)) return l.text;
+      return l.text + "\n\n—— 同步里的另一份 ——\n" + rt;
+    }
+    return (l.updatedAt || 0) >= (r.updatedAt || 0) ? l.text : rt;
+  }
+  // a local copy newer than the synced one (save failed, or a stale read) is pushed again
+  const pushing = {};
+  function healNote(key) {
+    const t = noteText(key), r = S.notes[key];
+    if (!S.db || pushing[key] || (r && (r.text || "") === t) || (!r && !t)) return;
+    pushing[key] = 1; const at = Date.now(); setLocalNote(key, t, at);
+    saveDoc("notes", key, { text: t, updatedAt: at }).then(ok => { if (ok) S.notes[key] = { text: t, updatedAt: at }; }).finally(() => { delete pushing[key]; });
+  }
+  const qKey = () => "quick-" + S.date;
+  const quickText = () => noteText(qKey());
   function syncQuick() {
     if (!S.date) return;
     $("qdate").textContent = md(S.date);
     const t = quickText();
     [$("qta"), $("mqta")].forEach(ta => { if (document.activeElement !== ta) ta.value = t; });
+    healNote(qKey());
   }
   let qTimer = null;
   async function saveQuick(text) {
-    const key = qKey(), sts = [$("qst"), $("mqst")];
-    try { localStorage.setItem("st-" + key, text); } catch (e) {}
-    if (S.db) { sts.forEach(e => e.textContent = "保存中"); const ok = await saveDoc("notes", key, { text, updatedAt: Date.now() }); if (ok) S.notes[key] = { text, updatedAt: Date.now() }; sts.forEach(e => e.textContent = ok ? "已同步" : "只存在本机"); }
+    const key = qKey(), sts = [$("qst"), $("mqst")], at = Date.now();
+    setLocalNote(key, text, at);
+    if (S.db) { sts.forEach(e => e.textContent = "保存中"); const ok = await saveDoc("notes", key, { text, updatedAt: at }); if (ok) S.notes[key] = { text, updatedAt: at }; sts.forEach(e => e.textContent = ok ? "已同步" : "只存在本机"); }
     else sts.forEach(e => e.textContent = "已存在本机");
   }
   [$("qta"), $("mqta")].forEach(ta => {
@@ -544,9 +567,12 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     return el;
   }
 
+  // 32-bit FNV-1a over UTF-16 units of the trimmed text (generate.py fnv() matches)
+  function fnv(t) { t = String(t).trim(); let h = 0x811c9dc5; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h.toString(16).padStart(8, "0"); }
   function currentExplain(it) {
     const e = S.explain[it.key];
-    if (e && typeof e.md === "string") return { text: e.md, edited: true };
+    // a saved copy of a walkthrough that has since been replaced (and was never really changed) must not hide the new one
+    if (e && typeof e.md === "string" && !(it.explainOld || []).includes(fnv(e.md))) return { text: e.md, edited: true };
     return { text: it.explain || "", edited: false };
   }
 
@@ -558,7 +584,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
       b.innerHTML = '<div class="bhead"><h3>讲解（编辑中）</h3><span class="tag">## @页 标题（@3-4 = 这节课第 3–4 页）　- 列表　&gt; 公式行　**加粗**</span></div><textarea id="ta-' + cssId(it.key) + '"></textarea><div class="row"><button class="tool" type="button" data-a="reset">恢复原版</button><button class="tool" type="button" data-a="cancel">取消</button><button class="tool primary" type="button" data-a="save">保存</button></div>';
       const ta = b.querySelector("textarea"); ta.value = ex.text; setTimeout(() => ta.focus(), 0);
       b.querySelector('[data-a="cancel"]').onclick = () => { S.editing = null; render(); };
-      b.querySelector('[data-a="save"]').onclick = async () => { await saveDoc("explain", it.key, { md: ta.value, updatedAt: Date.now() }); S.editing = null; render(); };
+      b.querySelector('[data-a="save"]').onclick = async () => { if (ta.value.trim() === (it.explain || "").trim()) await deleteDoc("explain", it.key); else await saveDoc("explain", it.key, { md: ta.value, updatedAt: Date.now() }); S.editing = null; render(); };
       b.querySelector('[data-a="reset"]').onclick = async () => { await deleteDoc("explain", it.key); S.editing = null; render(); };
       return b;
     }
@@ -864,7 +890,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
         acts.querySelector('[data-a="copy"]').onclick = () => copyText(text);
         acts.querySelector('[data-a="note"]').onclick = async e => {
           const o = pageOwner(ASK.page); if (!o) return;
-          const cur = (S.notes[o.it.key] || {}).text || "";
+          const cur = noteText(o.it.key);
           const add = "**问（第 " + ASK.page + " 页）：**" + q + (quoteUsed ? "\n> " + quoteUsed.replace(/\n/g, " ") : "") + "\n**" + pname + "：**" + text;
           if (!canEdit()) { copyText(add); e.target.textContent = "已复制（这里不能存，粘进笔记）"; return needEdit(); }
           await saveNote(o.it.key, (cur ? cur + "\n\n" : "") + add); S.notes[o.it.key] = { text: (cur ? cur + "\n\n" : "") + add, updatedAt: Date.now() };
@@ -897,14 +923,15 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 
   function notesBlock(it) {
     const b = document.createElement("div"); b.className = "block";
-    const text = (S.notes[it.key] || {}).text || "";
+    const text = noteText(it.key);
     const editable = desktopMQ.matches;
+    if (editable) healNote(it.key);
     if (editable) {
       b.innerHTML = '<div class="bhead"><h3>我的笔记</h3><span class="tag" id="st-' + cssId(it.key) + '"></span></div><textarea class="notes" placeholder="课前疑问、课上要点、课后要复习的地方……自动保存"></textarea>';
       const ta = b.querySelector("textarea"); ta.value = text; ta.id = "n-" + cssId(it.key);
       let t = null;
       ta.addEventListener("input", () => { clearTimeout(t); status(it.key, "未保存"); t = setTimeout(() => saveNote(it.key, ta.value), 1200); });
-      ta.addEventListener("blur", () => { clearTimeout(t); if (ta.value !== ((S.notes[it.key] || {}).text || "")) saveNote(it.key, ta.value); });
+      ta.addEventListener("blur", () => { clearTimeout(t); if (ta.value !== noteText(it.key)) saveNote(it.key, ta.value); });
     } else {
       b.innerHTML = '<div class="bhead"><h3>我的笔记</h3></div>' + (text ? '<div class="md">' + renderMd(text) + "</div>" : '<p class="muted">' + "在电脑上打开这一页就能写笔记。" + "</p>");
     }
@@ -913,8 +940,10 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   function status(key, txt) { const e = $("st-" + cssId(key)); if (e) e.textContent = txt; }
   async function saveNote(key, text) {
     status(key, "保存中……");
-    const ok = await saveDoc("notes", key, { text, updatedAt: Date.now() });
-    status(key, ok ? "已保存" : "没保存上，稍后再试");
+    const at = Date.now(); setLocalNote(key, text, at);
+    const ok = await saveDoc("notes", key, { text, updatedAt: at });
+    if (ok) S.notes[key] = { text, updatedAt: at };
+    status(key, ok ? "已保存" : "没保存上，已存在本机，稍后自动重试");
   }
 
   function renderExtra() {
