@@ -745,7 +745,8 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     $("akhelp").textContent = P.help + " key 只存在这台设备的浏览器里。不设置也能用：会打开 claude.ai，用你的 Claude 会员回答。";
     $("aksum").textContent = k ? "用 " + P.name + (pv === "deepseek" ? "（" + dsModel() + "）" : "") + " 直接在这里回答 · 设置" : "可选：用 API key 直接在这里回答";
     $("asksend").textContent = k ? "发送" : "在 Claude 里问 ↗";
-    const nm = k ? P.name : "Claude"; $("askfab").textContent = "问 " + nm; const hb = document.querySelector("#ask .ah b"); if (hb) hb.textContent = "问 " + nm;
+    const lbl = k ? "问 " + P.name : "提问"; $("askfab").textContent = lbl; const hb = document.querySelector("#ask .ah b"); if (hb) hb.textContent = lbl;
+    if (!k) $("aksum").textContent = "这台设备还没填 API key：点这里填 " + P.name + " 的 key，填了就直接在网页里回答";
   }
   $("akprov").onchange = () => { lss("st-ap", $("akprov").value); ASK.conv = []; syncAskMode(); };
   $("akmodel").onchange = () => { lss("st-dm", $("akmodel").value); syncAskMode(); };
