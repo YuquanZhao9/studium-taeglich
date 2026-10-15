@@ -283,8 +283,9 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
       <div class="row"><span class="muted" id="askst"></span><button class="tool" id="askcopy" type="button">复制问题</button><button class="tool primary" id="asksend" type="button">在 Claude 里问 ↗</button></div>
       <a class="tool" id="askgo" href="https://claude.ai/new" target="_blank" rel="noopener" hidden>打开 Claude</a>
       <details id="akbox"><summary id="aksum">可选：用 API key 直接在这里回答</summary>
-        <input id="akey" type="password" autocomplete="off" placeholder="sk-ant-...">
-        <div class="row"><span class="muted">不设置也能用：默认打开 claude.ai，用你的 Claude 订阅回答。API key 是另外按用量计费的（console.anthropic.com），设置后回答直接显示在这里。</span><button class="tool" id="akclear" type="button">清除</button><button class="tool primary" id="aksave" type="button">保存</button></div>
+        <div class="row" style="justify-content:flex-start"><select id="akprov" aria-label="用哪家的 API"><option value="deepseek">DeepSeek</option><option value="claude">Claude</option></select><select id="akmodel" aria-label="DeepSeek 模型"><option value="deepseek-chat">deepseek-chat（快）</option><option value="deepseek-reasoner">deepseek-reasoner（会先思考，慢一点）</option></select></div>
+        <input id="akey" type="password" autocomplete="off" placeholder="sk-...">
+        <div class="row"><span class="muted" id="akhelp"></span><button class="tool" id="akclear" type="button">清除</button><button class="tool primary" id="aksave" type="button">保存</button></div>
       </details>
     </div>
   </section>
@@ -702,12 +703,24 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 
   // ---------- quick ask (Claude API, user's own key) ----------
   const ASK = { conv: [], page: null, quote: "", busy: false, client: null, key: null };
-  const akey = () => { try { return localStorage.getItem("st-ak") || ""; } catch (e) { return ""; } };
+  const lsg = k => { try { return localStorage.getItem(k) || ""; } catch (e) { return ""; } };
+  const lss = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) {} };
+  const PROV = { deepseek: { name: "DeepSeek", ls: "st-dk", ph: "sk-...", help: "DeepSeek 的 key 在 platform.deepseek.com 创建，按用量计费。" },
+                 claude: { name: "Claude", ls: "st-ak", ph: "sk-ant-...", help: "Claude 的 key 在 console.anthropic.com 创建，按用量计费，和 Claude 会员是分开的。" } };
+  const provider = () => lsg("st-ap") || (lsg("st-dk") || !lsg("st-ak") ? "deepseek" : "claude");
+  const dsModel = () => lsg("st-dm") || "deepseek-chat";
+  const akey = () => lsg(PROV[provider()].ls);
   function syncAskMode() {
-    const k = akey();
-    $("aksum").textContent = k ? "API key 已设置：回答直接显示在这里（只存在这台设备）" : "可选：用 API key 直接在这里回答";
+    const pv = provider(), P = PROV[pv], k = akey();
+    $("akprov").value = pv; $("akmodel").value = dsModel(); $("akmodel").hidden = pv !== "deepseek";
+    $("akey").placeholder = k ? "已保存（重新输入可替换）" : P.ph;
+    $("akhelp").textContent = P.help + " key 只存在这台设备的浏览器里。不设置也能用：会打开 claude.ai，用你的 Claude 会员回答。";
+    $("aksum").textContent = k ? "用 " + P.name + (pv === "deepseek" ? "（" + dsModel() + "）" : "") + " 直接在这里回答 · 设置" : "可选：用 API key 直接在这里回答";
     $("asksend").textContent = k ? "发送" : "在 Claude 里问 ↗";
+    const nm = k ? P.name : "Claude"; $("askfab").textContent = "问 " + nm; const hb = document.querySelector("#ask .ah b"); if (hb) hb.textContent = "问 " + nm;
   }
+  $("akprov").onchange = () => { lss("st-ap", $("akprov").value); ASK.conv = []; syncAskMode(); };
+  $("akmodel").onchange = () => { lss("st-dm", $("akmodel").value); syncAskMode(); };
   function askStatus(t) { $("askst").textContent = t || ""; }
   function openAsk(n) {
     const sel = String(window.getSelection ? window.getSelection() : "").trim();
@@ -776,7 +789,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   }
   function addMsg(cls, html) { const d = document.createElement("div"); d.className = "msg " + cls; d.innerHTML = html; const log = $("asklog"); log.querySelector("p.muted")?.remove(); log.appendChild(d); log.scrollTop = log.scrollHeight; return d; }
   async function getClient() {
-    const k = akey(); if (!k) return null;
+    const k = lsg("st-ak"); if (!k) return null;
     if (ASK.client && ASK.key === k) return ASK.client;
     const mod = await import("https://cdn.jsdelivr.net/npm/@anthropic-ai/sdk@0.129.0/+esm");
     const Anthropic = mod.default || mod.Anthropic;
@@ -784,34 +797,64 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     return ASK.client;
   }
   const ASK_SYSTEM = "你是斯图加特大学硕士课程的助教。学生正在网页上看某节课的课件，会把那一页的课件文字、中文翻译、老师带读和问题一起发给你。用中文回答，先直接回答问题，再讲清道理；需要时举一个小算例。只依据课件内容和公认的专业知识，课件里没有、你也不确定的要说明。可以用 Markdown 的列表和加粗，公式用 Unicode 写在单独一行，不要用 LaTeX。";
+  // DeepSeek: OpenAI-style chat completions, called straight from the browser (CORS allows github.io)
+  async function streamDeepseek(onText, onThinking) {
+    const msgs = [{ role: "system", content: ASK_SYSTEM }].concat(ASK.conv.map(m => ({ role: m.role, content: typeof m.content === "string" ? m.content : (m.content || []).filter(b => b.type === "text").map(b => b.text).join("") })));
+    const r = await fetch("https://api.deepseek.com/chat/completions", {
+      method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer " + lsg("st-dk") },
+      body: JSON.stringify({ model: dsModel(), messages: msgs, stream: true }),
+    });
+    if (!r.ok) { let m = ""; try { m = (await r.json()).error.message; } catch (e) {} const err = new Error(m || "HTTP " + r.status); err.status = r.status; throw err; }
+    const rd = r.body.getReader(), dec = new TextDecoder(); let buf = "", stop = "";
+    for (;;) {
+      const { done, value } = await rd.read(); if (done) break;
+      buf += dec.decode(value, { stream: true });
+      let i; while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+        if (!line.startsWith("data:")) continue;
+        const d = line.slice(5).trim(); if (d === "[DONE]") return stop;
+        try { const c = JSON.parse(d).choices[0]; if (c.delta && c.delta.content) onText(c.delta.content); else if (c.delta && c.delta.reasoning_content) onThinking(); if (c.finish_reason) stop = c.finish_reason; } catch (e) {}
+      }
+    }
+    return stop;
+  }
   async function sendAsk() {
     const q = $("askq").value.trim(); if (!q || ASK.busy) return;
-    const client = await getClient().catch(e => { addMsg("err", "Claude 的程序库没载入：" + esc(e.message)); return undefined; });
-    if (client === undefined) return;
-    if (!client) return askInClaude();
-    ASK.busy = true; $("asksend").disabled = true; askStatus("Claude 正在回答……");
+    const pv = provider(), pname = PROV[pv].name;
+    if (!akey()) return askInClaude();
+    let client = null;
+    if (pv === "claude") {
+      client = await getClient().catch(e => { addMsg("err", "Claude 的程序库没载入：" + esc(e.message)); return undefined; });
+      if (!client) return;
+    }
+    ASK.busy = true; $("asksend").disabled = true; askStatus(pname + " 正在回答……");
     addMsg("u", esc(q) + (ASK.quote ? '<div class="quote">' + esc(ASK.quote) + "</div>" : ""));
     const userText = await buildUserText(q);
     ASK.conv.push({ role: "user", content: userText });
     $("askq").value = ""; const quoteUsed = ASK.quote; ASK.quote = ""; $("askquote").hidden = true;
     const box = addMsg("a", '<div class="md"><p class="muted">思考中……</p></div>');
     let text = "";
+    const show = () => { box.querySelector(".md").innerHTML = renderMd(text); $("asklog").scrollTop = $("asklog").scrollHeight; };
     try {
-      const stream = client.beta.messages.stream({
-        model: "claude-opus-5-5", max_tokens: 16000,
-        betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
-        system: ASK_SYSTEM, messages: ASK.conv,
-      });
-      for await (const ev of stream) {
-        if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") {
-          text += ev.delta.text; box.querySelector(".md").innerHTML = renderMd(text); $("asklog").scrollTop = $("asklog").scrollHeight;
+      let stop = "";
+      if (pv === "deepseek") {
+        stop = await streamDeepseek(t => { text += t; show(); }, () => { if (!text) box.querySelector(".md").innerHTML = '<p class="muted">正在思考……</p>'; });
+      } else {
+        const stream = client.beta.messages.stream({
+          model: "claude-opus-5-5", max_tokens: 16000,
+          betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
+          system: ASK_SYSTEM, messages: ASK.conv,
+        });
+        for await (const ev of stream) {
+          if (ev.type === "content_block_delta" && ev.delta.type === "text_delta") { text += ev.delta.text; show(); }
         }
+        const final = await stream.finalMessage();
+        stop = final.stop_reason === "max_tokens" ? "length" : final.stop_reason;
       }
-      const final = await stream.finalMessage();
-      if (final.stop_reason === "refusal") { box.insertAdjacentHTML("beforeend", '<div class="msg err">这个问题 Claude 没有回答（被安全规则拦下），换个问法试试。</div>'); ASK.conv.pop(); }
+      if (stop === "refusal" || stop === "content_filter") { box.insertAdjacentHTML("beforeend", '<div class="msg err">这个问题 ' + pname + ' 没有回答（被安全规则拦下），换个问法试试。</div>'); ASK.conv.pop(); }
       else {
-        ASK.conv.push({ role: "assistant", content: final.content });
-        if (final.stop_reason === "max_tokens") box.insertAdjacentHTML("beforeend", '<p class="muted">（回答太长，被截断了）</p>');
+        ASK.conv.push({ role: "assistant", content: text });
+        if (stop === "length") box.insertAdjacentHTML("beforeend", '<p class="muted">（回答太长，被截断了）</p>');
         const acts = document.createElement("div"); acts.className = "acts";
         acts.innerHTML = '<button class="tool" type="button" data-a="page">存到这一页</button><button class="tool" type="button" data-a="note">存进笔记</button><button class="tool" type="button" data-a="copy">复制回答</button>';
         const askedPage = ASK.page;
@@ -820,7 +863,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
         acts.querySelector('[data-a="note"]').onclick = async e => {
           const o = pageOwner(ASK.page); if (!o) return;
           const cur = (S.notes[o.it.key] || {}).text || "";
-          const add = "**问（第 " + ASK.page + " 页）：**" + q + (quoteUsed ? "\n> " + quoteUsed.replace(/\n/g, " ") : "") + "\n**Claude：**" + text;
+          const add = "**问（第 " + ASK.page + " 页）：**" + q + (quoteUsed ? "\n> " + quoteUsed.replace(/\n/g, " ") : "") + "\n**" + pname + "：**" + text;
           if (!canEdit()) { copyText(add); e.target.textContent = "已复制（这里不能存，粘进笔记）"; return needEdit(); }
           await saveNote(o.it.key, (cur ? cur + "\n\n" : "") + add); S.notes[o.it.key] = { text: (cur ? cur + "\n\n" : "") + add, updatedAt: Date.now() };
           e.target.textContent = "已存进笔记"; render();
@@ -832,7 +875,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
       ASK.conv.pop();
       const st = e && e.status;
       askStatus("");
-      box.innerHTML = '<div class="msg err">' + (st === 401 ? "API key 无效，检查一下设置。" : st === 429 ? "请求太频繁或额度用完，稍后再试。" : st === 400 ? "请求被拒绝：" + esc(e.message) : "没连上 Claude：" + esc(e.message || e)) + "</div>";
+      box.innerHTML = '<div class="msg err">' + (st === 401 ? pname + " 的 API key 无效，检查一下设置。" : st === 402 ? pname + " 账户余额不足，先去充值。" : st === 429 ? "请求太频繁或额度用完，稍后再试。" : st === 400 || st === 422 ? "请求被拒绝：" + esc(e.message) : "没连上 " + pname + "：" + esc(e.message || e)) + "</div>";
     } finally { ASK.busy = false; $("asksend").disabled = false; }
   }
   async function copyText(t) {
@@ -845,8 +888,9 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   $("asksend").onclick = sendAsk;
   $("askq").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendAsk(); } });
   $("askcopy").onclick = async () => { const q = $("askq").value.trim(); if (!q) return askStatus("先写问题"); copyText(await buildUserText(q)); };
-  $("aksave").onclick = () => { try { localStorage.setItem("st-ak", $("akey").value.trim()); } catch (e) {} $("akey").value = ""; ASK.client = null; $("akbox").open = false; syncAskMode(); askStatus(akey() ? "已保存" : ""); };
-  $("akclear").onclick = () => { try { localStorage.removeItem("st-ak"); } catch (e) {} ASK.client = null; syncAskMode(); askStatus("已清除"); };
+  $("aksave").onclick = () => { const v = $("akey").value.trim(); lss("st-ap", $("akprov").value); if (v) lss(PROV[provider()].ls, v); $("akey").value = ""; ASK.client = null; $("akbox").open = false; syncAskMode(); askStatus(akey() ? "已保存" : ""); };
+  $("akclear").onclick = () => { lss(PROV[provider()].ls, ""); ASK.client = null; syncAskMode(); askStatus("已清除"); };
+  syncAskMode();
   document.body.classList.toggle("desk", desktopMQ.matches);
 
   function notesBlock(it) {
