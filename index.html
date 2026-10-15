@@ -53,6 +53,15 @@ button { font: inherit; color: inherit; }
 button:focus-visible, select:focus-visible, textarea:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .app { display: grid; grid-template-columns: 210px minmax(0, 1fr) minmax(0, 1.05fr); min-height: 100vh; }
+.quick { display: grid; gap: 6px; }
+.quick .qh { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+.quick .qh .label { margin: 0; }
+.quick .qst { font: 11px var(--mono); color: var(--muted); }
+.quick textarea { width: 100%; min-height: 160px; resize: vertical; font: 13px/1.5 var(--ui); padding: 8px; border-radius: 8px; border: 1px solid var(--line); background: var(--card); color: var(--ink); }
+.quick button { justify-self: start; }
+.mquick { display: none; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 8px 12px; }
+.mquick summary { cursor: pointer; font-weight: 600; }
+.mquick textarea { margin-top: 6px; background: var(--bg); }
 .rail { position: sticky; top: env(safe-area-inset-top, 0px); height: 100vh; overflow-y: auto; padding-block: 22px; padding-inline: 16px; border-right: 1px solid var(--line); display: flex; flex-direction: column; gap: 22px; }
 .brand { font-weight: 600; font-size: 18px; line-height: 1.2; }
 .brand small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); margin-top: 4px; }
@@ -212,6 +221,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 @media (max-width: 900px) {
   .app { grid-template-columns: minmax(0, 1fr); }
   .rail { display: none; }
+  .mquick { display: grid; }
   .mtop { display: flex; position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; height: var(--mtop-h); align-items: center; justify-content: space-between; gap: 10px; margin-inline: -16px; margin-top: -12px; padding: 0 16px; background: var(--card); border-bottom: 1px solid var(--line); }
   .mtop .brand { font-size: 16px; }
   .mtop select { font: 14px var(--ui); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; max-width: 50%; }
@@ -239,6 +249,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 <div class="app">
   <nav class="rail" aria-label="日期">
     <div class="brand">Studium täglich<small>Uni Stuttgart · WS 2026/27</small></div>
+    <div class="quick"><div class="qh"><p class="label">快速笔记 <span id="qdate"></span></p><span class="qst" id="qst"></span></div><textarea id="qta" placeholder="随手记：疑问、要点、待办……自动保存"></textarea><button class="tool" type="button" id="qpage">＋插入当前页码</button></div>
     <div><p class="label">日期</p><div class="dates" id="dates"></div></div>
     <div class="sync"><span class="dot" id="dot"></span><span id="synctxt">连接中</span></div>
     <details class="gh" id="ghbox"><summary id="ghsum">✏️ 开启在线编辑</summary><b id="ghmsg" hidden>先在这里填一次 GitHub 令牌，之后就能直接编辑讲解、写笔记。</b>
@@ -253,6 +264,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     <div class="navs" id="navs"><div class="seg" id="seg" role="group" aria-label="当天或次日"></div><nav class="cjump" id="cjump" aria-label="跳到某门课"></nav></div>
     <div class="dayhead" id="dayhead"></div>
     <div class="starbar" id="starbar" hidden></div>
+    <details class="quick mquick" id="mquick"><summary>快速笔记</summary><textarea id="mqta" placeholder="随手记：疑问、要点、待办……自动保存"></textarea><span class="qst" id="mqst"></span></details>
     <div class="cards" id="cards"><div class="empty">正在载入……</div></div>
     <div class="extra" id="extra"></div>
   </main>
@@ -402,7 +414,41 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     renderExtra();
     placeNotes();
     renderJump(d);
+    syncQuick();
   }
+
+  // ---------- quick note (one per date; synced with notes when editing is on, else this browser) ----------
+  const qKey = () => "quick-" + S.date;
+  function quickText() {
+    const r = (S.notes[qKey()] || {}).text;
+    if (r != null) return r;
+    try { return localStorage.getItem("st-" + qKey()) || ""; } catch (e) { return ""; }
+  }
+  function syncQuick() {
+    if (!S.date) return;
+    $("qdate").textContent = md(S.date);
+    const t = quickText();
+    [$("qta"), $("mqta")].forEach(ta => { if (document.activeElement !== ta) ta.value = t; });
+  }
+  let qTimer = null;
+  async function saveQuick(text) {
+    const key = qKey(), sts = [$("qst"), $("mqst")];
+    try { localStorage.setItem("st-" + key, text); } catch (e) {}
+    if (S.db) { sts.forEach(e => e.textContent = "保存中"); const ok = await saveDoc("notes", key, { text, updatedAt: Date.now() }); if (ok) S.notes[key] = { text, updatedAt: Date.now() }; sts.forEach(e => e.textContent = ok ? "已同步" : "只存在本机"); }
+    else sts.forEach(e => e.textContent = "已存在本机");
+  }
+  [$("qta"), $("mqta")].forEach(ta => {
+    ta.addEventListener("input", () => { const other = ta.id === "qta" ? $("mqta") : $("qta"); other.value = ta.value; [$("qst"), $("mqst")].forEach(e => e.textContent = "未保存"); clearTimeout(qTimer); qTimer = setTimeout(() => saveQuick(ta.value), 1000); });
+    ta.addEventListener("blur", () => { clearTimeout(qTimer); if (ta.value !== quickText()) saveQuick(ta.value); });
+  });
+  $("qpage").onclick = () => {
+    const ta = $("qta"), n = S.curPage || 1, o = pageOwner(n);
+    const tag = "[" + (o ? o.it.course + " " : "") + "第 " + n + " 页] ";
+    const p = ta.selectionStart ?? ta.value.length;
+    const pre = ta.value.slice(0, p), lead = pre && !pre.endsWith("\n") ? "\n" : "";
+    ta.value = pre + lead + tag + ta.value.slice(p); ta.focus(); ta.selectionStart = ta.selectionEnd = p + lead.length + tag.length;
+    ta.dispatchEvent(new Event("input"));
+  };
 
   // one button per course of the shown day: scroll to its card (desktop: also open its slides)
   function renderJump(d) {
