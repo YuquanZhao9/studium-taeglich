@@ -258,14 +258,15 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   <button class="askfab" id="askfab" type="button">问 Claude</button>
   <section class="ask" id="ask" hidden aria-label="快速提问">
     <div class="ah"><b>问 Claude</b><span id="askctx"></span><button class="tool" id="asknew" type="button">新对话</button><button class="tool" id="askx" type="button">关闭</button></div>
-    <div class="log" id="asklog"><p class="muted">在课件上点「问」，或者先选中一段文字再点「问 Claude」，Claude 会带着这一页的课件、翻译和带读来回答。</p></div>
+    <div class="log" id="asklog"><p class="muted">在课件上点「问」，或者先选中一段文字再点「问 Claude」，会带着这一页的翻译和带读一起打开 claude.ai，用你的 Claude 订阅回答，不需要 API key。</p></div>
     <div class="foot">
       <div class="quote" id="askquote" hidden></div>
       <textarea id="askq" placeholder="想问这一页的什么？（Ctrl+Enter 发送）"></textarea>
-      <div class="row"><span class="muted" id="askst"></span><button class="tool" id="askcopy" type="button">复制问题</button><button class="tool primary" id="asksend" type="button">发送</button></div>
-      <details id="akbox"><summary id="aksum">设置 Claude API key（只存在这台设备的浏览器里）</summary>
+      <div class="row"><span class="muted" id="askst"></span><button class="tool" id="askcopy" type="button">复制问题</button><button class="tool primary" id="asksend" type="button">在 Claude 里问 ↗</button></div>
+      <a class="tool" id="askgo" href="https://claude.ai/new" target="_blank" rel="noopener" hidden>打开 Claude</a>
+      <details id="akbox"><summary id="aksum">可选：用 API key 直接在这里回答</summary>
         <input id="akey" type="password" autocomplete="off" placeholder="sk-ant-...">
-        <div class="row"><span class="muted">按用量计费，在 console.anthropic.com 创建。没有 key 时可以点「复制问题」粘贴到 Claude 里问。</span><button class="tool" id="akclear" type="button">清除</button><button class="tool primary" id="aksave" type="button">保存</button></div>
+        <div class="row"><span class="muted">不设置也能用：默认打开 claude.ai，用你的 Claude 订阅回答。API key 是另外按用量计费的（console.anthropic.com），设置后回答直接显示在这里。</span><button class="tool" id="akclear" type="button">清除</button><button class="tool primary" id="aksave" type="button">保存</button></div>
       </details>
     </div>
   </section>
@@ -602,6 +603,11 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   // ---------- quick ask (Claude API, user's own key) ----------
   const ASK = { conv: [], page: null, quote: "", busy: false, client: null, key: null };
   const akey = () => { try { return localStorage.getItem("st-ak") || ""; } catch (e) { return ""; } };
+  function syncAskMode() {
+    const k = akey();
+    $("aksum").textContent = k ? "API key 已设置：回答直接显示在这里（只存在这台设备）" : "可选：用 API key 直接在这里回答";
+    $("asksend").textContent = k ? "发送" : "在 Claude 里问 ↗";
+  }
   function askStatus(t) { $("askst").textContent = t || ""; }
   function openAsk(n) {
     const sel = String(window.getSelection ? window.getSelection() : "").trim();
@@ -610,20 +616,59 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     const o = pageOwner(ASK.page);
     $("askctx").textContent = (o ? o.it.course + " " + o.it.kind + " · " : "") + "第 " + ASK.page + " 页";
     $("askquote").hidden = !ASK.quote; $("askquote").textContent = ASK.quote ? "引用：" + ASK.quote : "";
-    $("aksum").textContent = akey() ? "Claude API key 已设置（只存在这台设备）" : "设置 Claude API key（只存在这台设备的浏览器里）";
+    syncAskMode();
     $("ask").hidden = false; $("askfab").hidden = true;
     setTimeout(() => $("askq").focus(), 0);
   }
-  async function pageContext(n) {
+  async function pagePieces(n) {
     const o = pageOwner(n); let text = "";
     try { const pg = await S.pdf.getPage(n); const tc = await pg.getTextContent(); text = tc.items.map(x => x.str).join(" ").replace(/\s+/g, " ").trim().slice(0, 6000); } catch (e) {}
-    const parts = ["【课件第 " + n + " 页的文字】\n" + (text || "（这一页没有可提取的文字，可能是图片）")];
+    const r = { head: "", text: "【课件第 " + n + " 页的文字】\n" + (text || "（这一页没有可提取的文字，可能是图片）"), tr: "", ch: "" };
     if (o) {
-      const tr = (o.it.translation || {})[String(o.k)]; if (tr) parts.push("【这一页的中文翻译】\n" + tr);
-      const ch = chunks(currentExplain(o.it).text).find(c => c.at != null && o.k >= c.at && o.k <= c.to); if (ch) parts.push("【这一页的老师带读】\n" + ch.md);
-      parts.unshift("课程：" + o.it.courseName + "（" + o.it.course + "）· " + o.it.kind + (o.it.topic ? "\n本节主题：" + o.it.topic : ""));
+      const tr = (o.it.translation || {})[String(o.k)]; if (tr) r.tr = tr;
+      const ch = chunks(currentExplain(o.it).text).find(c => c.at != null && o.k >= c.at && o.k <= c.to); if (ch) r.ch = ch.md;
+      r.head = "课程：" + o.it.courseName + "（" + o.it.course + "）· " + o.it.kind + " · 课件第 " + n + " 页" + (o.it.topic ? "\n本节主题：" + o.it.topic : "");
     }
-    return parts.join("\n\n");
+    return r;
+  }
+  async function pageContext(n) {
+    const r = await pagePieces(n);
+    return [r.head, r.text, r.tr && "【这一页的中文翻译】\n" + r.tr, r.ch && "【这一页的老师带读】\n" + r.ch].filter(Boolean).join("\n\n");
+  }
+  // claude.ai chat (no API key): full context goes to the clipboard, a shorter version prefills claude.ai/new?q=
+  const URL_MAX = 7000;
+  async function claudeTexts(q) {
+    const r = await pagePieces(ASK.page);
+    const intro = "我在看斯图加特大学硕士课程的课件，请当助教，用中文回答：先直接回答，再讲清道理，需要时举个小算例；公式用 Unicode，不要用 LaTeX。";
+    const tail = (ASK.quote ? "\n\n【我选中的这段】\n" + ASK.quote : "") + "\n\n【我的问题】\n" + q;
+    const full = intro + "\n\n" + [r.head, r.text, r.tr && "【这一页的中文翻译】\n" + r.tr, r.ch && "【这一页的老师带读】\n" + r.ch].filter(Boolean).join("\n\n") + tail;
+    const make = (tr, ch) => intro + "\n\n" + [r.head, tr && "【这一页的中文翻译】\n" + tr, ch && "【这一页的老师带读】\n" + ch].filter(Boolean).join("\n\n") + tail;
+    let tr = r.tr, ch = r.ch, short = make(tr, ch);
+    while (encodeURIComponent(short).length > URL_MAX && (tr.length || ch.length)) {
+      if (ch.length >= tr.length) ch = ch.length > 200 ? ch.slice(0, Math.floor(ch.length * 0.7)) + "……" : ""; else tr = tr.length > 200 ? tr.slice(0, Math.floor(tr.length * 0.7)) + "……" : "";
+      short = make(tr, ch);
+    }
+    if (encodeURIComponent(short).length > URL_MAX) short = "";
+    return { full, short, cut: short !== full };
+  }
+  async function askInClaude() {
+    const q = $("askq").value.trim(); if (!q) return askStatus("先写问题");
+    const win = window.open("", "_blank");  // open now, while the click still counts, then point it at claude.ai
+    const tp = claudeTexts(q);
+    let copied = false;
+    try {
+      if (window.ClipboardItem && navigator.clipboard && navigator.clipboard.write) {
+        await navigator.clipboard.write([new ClipboardItem({ "text/plain": tp.then(t => new Blob([t.full], { type: "text/plain" })) })]); copied = true;
+      } else { await navigator.clipboard.writeText((await tp).full); copied = true; }
+    } catch (e) {}
+    const t = await tp;
+    const url = "https://claude.ai/new" + (t.short ? "?q=" + encodeURIComponent(t.short) : "");
+    if (win) { try { win.opener = null; } catch (e) {} win.location.href = url; } else { const a = $("askgo"); a.href = url; a.hidden = false; }
+    addMsg("u", esc(q) + (ASK.quote ? '<div class="quote">' + esc(ASK.quote) + "</div>" : ""));
+    addMsg("a", '<div class="md"><p>' + (t.short ? "已在 Claude 里打开，问题和这一页的翻译、带读已经填好，点发送就行。" : "已打开 Claude。") +
+      (copied ? (t.cut || !t.short ? "完整版（含课件原文）已复制，想让 Claude 看全文就把输入框清空后粘贴。" : "") : "（没能复制到剪贴板。）") + '</p><p class="muted">回答在 Claude 那边，用你的订阅额度，不花 API 费用。</p></div>');
+    $("askq").value = ""; ASK.quote = ""; $("askquote").hidden = true;
+    askStatus(win ? "" : "浏览器拦了新窗口，点上面的「打开 Claude」");
   }
   async function buildUserText(q) {
     const ctx = await pageContext(ASK.page);
@@ -643,7 +688,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     const q = $("askq").value.trim(); if (!q || ASK.busy) return;
     const client = await getClient().catch(e => { addMsg("err", "Claude 的程序库没载入：" + esc(e.message)); return undefined; });
     if (client === undefined) return;
-    if (!client) { $("akbox").open = true; askStatus("先设置 API key，或者点「复制问题」"); return; }
+    if (!client) return askInClaude();
     ASK.busy = true; $("asksend").disabled = true; askStatus("Claude 正在回答……");
     addMsg("u", esc(q) + (ASK.quote ? '<div class="quote">' + esc(ASK.quote) + "</div>" : ""));
     const userText = await buildUserText(q);
@@ -698,8 +743,8 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   $("asksend").onclick = sendAsk;
   $("askq").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendAsk(); } });
   $("askcopy").onclick = async () => { const q = $("askq").value.trim(); if (!q) return askStatus("先写问题"); copyText(await buildUserText(q)); };
-  $("aksave").onclick = () => { try { localStorage.setItem("st-ak", $("akey").value.trim()); } catch (e) {} $("akey").value = ""; ASK.client = null; $("akbox").open = false; $("aksum").textContent = akey() ? "Claude API key 已设置（只存在这台设备）" : "设置 Claude API key（只存在这台设备的浏览器里）"; askStatus(akey() ? "已保存" : ""); };
-  $("akclear").onclick = () => { try { localStorage.removeItem("st-ak"); } catch (e) {} ASK.client = null; $("aksum").textContent = "设置 Claude API key（只存在这台设备的浏览器里）"; askStatus("已清除"); };
+  $("aksave").onclick = () => { try { localStorage.setItem("st-ak", $("akey").value.trim()); } catch (e) {} $("akey").value = ""; ASK.client = null; $("akbox").open = false; syncAskMode(); askStatus(akey() ? "已保存" : ""); };
+  $("akclear").onclick = () => { try { localStorage.removeItem("st-ak"); } catch (e) {} ASK.client = null; syncAskMode(); askStatus("已清除"); };
   document.body.classList.toggle("desk", desktopMQ.matches);
 
   function notesBlock(it) {
