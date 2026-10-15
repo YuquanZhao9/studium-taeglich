@@ -69,7 +69,14 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, summary:focu
 
 .main { padding-block: 22px 60px; padding-inline: 24px; min-width: 0; display: grid; gap: 18px; align-content: start; }
 .mtop { display: none; }
-.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 4px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 10px); z-index: 3; box-shadow: 0 -12px 0 var(--bg); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 4px; }
+.navs { position: sticky; top: calc(env(safe-area-inset-top, 0px) + 10px); z-index: 3; display: grid; gap: 6px; background: var(--bg); box-shadow: 0 -12px 0 var(--bg); padding-bottom: 4px; }
+.cjump { display: flex; flex-wrap: wrap; gap: 6px; }
+.cjump:empty { display: none; }
+.cjump button { display: inline-flex; align-items: baseline; gap: 6px; font: 600 13px var(--ui); color: var(--cc, var(--accent)); background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--cc, var(--accent)); border-radius: 8px; padding: 5px 10px; cursor: pointer; }
+.cjump button small { font: 500 11px var(--mono); color: var(--muted); }
+.cjump button:hover, .cjump button[aria-current="true"] { background: var(--accent-soft); }
+.card { scroll-margin-top: calc(var(--navh, 110px) + 12px); }
 .seg button { border: 0; background: none; padding: 8px; border-radius: 7px; cursor: pointer; font-weight: 500; display: flex; gap: 8px; justify-content: center; align-items: baseline; }
 .seg button small { color: var(--muted); font: 12px var(--mono); }
 .seg button[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent); }
@@ -203,7 +210,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   .mtop .brand { font-size: 16px; }
   .mtop select { font: 14px var(--ui); color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; max-width: 50%; }
   .main { padding-inline: 16px; padding-block: 12px 48px; }
-  .seg { top: calc(env(safe-area-inset-top, 0px) + var(--mtop-h) + 8px); }
+  .navs { top: calc(env(safe-area-inset-top, 0px) + var(--mtop-h) + 8px); }
   .viewer { position: fixed; inset: 0; z-index: 10; height: auto; border: 0; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px); }
   .viewer:not(.open) { display: none; }
   .vclose { display: inline-block; }
@@ -237,7 +244,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 
   <main class="main">
     <div class="mtop"><div class="brand">Studium täglich</div><select id="dsel" aria-label="选择日期"></select></div>
-    <div class="seg" id="seg" role="group" aria-label="当天或次日"></div>
+    <div class="navs" id="navs"><div class="seg" id="seg" role="group" aria-label="当天或次日"></div><nav class="cjump" id="cjump" aria-label="跳到某门课"></nav></div>
     <div class="dayhead" id="dayhead"></div>
     <div class="starbar" id="starbar" hidden></div>
     <div class="cards" id="cards"><div class="empty">正在载入……</div></div>
@@ -339,9 +346,18 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
       const o = document.createElement("option"); o.value = m.date; o.textContent = md(m.date) + " " + wd(m.date); sel.appendChild(o);
     });
     sel.addEventListener("change", () => openDate(sel.value));
-    const want = (location.hash || "").replace("#d", "");
-    const hit = S.manifest.find(m => m.date.replaceAll("-", "") === want);
-    openDate((hit || S.manifest[0] || {}).date);
+    const hm = /^#d(\d{8})(?:-([A-Za-z]+))?/.exec(location.hash || "") || [];
+    const hit = S.manifest.find(m => m.date.replaceAll("-", "") === hm[1]);
+    await openDate((hit || S.manifest[0] || {}).date);
+    if (hit && hm[2] && S.view) {
+      const want = hm[2].toUpperCase();
+      const di = S.view.days.findIndex(d => d.items.some(x => x.type === "session" && !x.note && x.course.toUpperCase() === want));
+      if (di >= 0) {
+        if (di !== S.dayIdx) { S.dayIdx = di; render(); }
+        const it = S.view.days[di].items.find(x => x.type === "session" && !x.note && x.course.toUpperCase() === want);
+        setTimeout(() => goCourse(it), 300);
+      }
+    }
   }
 
   async function openDate(date) {
@@ -378,7 +394,37 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     d.items.forEach(item => cards.appendChild(card(item)));
     renderExtra();
     placeNotes();
+    renderJump(d);
   }
+
+  // one button per course of the shown day: scroll to its card (desktop: also open its slides)
+  function renderJump(d) {
+    const bar = $("cjump"); bar.innerHTML = "";
+    const items = d.items.filter(x => x.type === "session" && !x.note);
+    if (items.length < 2) { measureNav(); return; }
+    items.forEach(it => {
+      const b = document.createElement("button"); b.type = "button";
+      b.style.setProperty("--cc", "var(--c-" + it.course + ")");
+      b.innerHTML = esc(it.course) + " <small>" + esc(it.start) + " " + esc(it.kind) + "</small>";
+      b.dataset.key = it.key;
+      b.addEventListener("click", () => goCourse(it));
+      bar.appendChild(b);
+    });
+    measureNav();
+  }
+  function measureNav() { const n = $("navs"); document.documentElement.style.setProperty("--navh", ((parseFloat(getComputedStyle(n).top) || 10) + n.offsetHeight) + "px"); }
+  window.addEventListener("resize", measureNav);
+  function goCourse(it) {
+    const el = [...document.querySelectorAll(".card")].find(c => c.dataset.key === it.key); if (!el) return;
+    measureNav();
+    el.scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    document.querySelectorAll(".cjump button").forEach(b => b.removeAttribute("aria-current"));
+    const btn = [...$("cjump").children].find(b => b.dataset.key === it.key);
+    if (btn) btn.setAttribute("aria-current", "true");
+    if (desktopMQ.matches && it.sections && it.sections.length) jumpTo(it.sections[0].page, el, null);
+    else { document.querySelectorAll(".card.active").forEach(c => c.classList.remove("active")); el.classList.add("active"); }
+  }
+
 
   const trOn = () => { try { return localStorage.getItem("st-tr") !== "0"; } catch (e) { return true; } };
   $("trbtn").addEventListener("click", () => { try { localStorage.setItem("st-tr", trOn() ? "0" : "1"); } catch (e) {} placeNotes(); });
