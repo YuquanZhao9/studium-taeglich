@@ -707,6 +707,8 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   const lss = (k, v) => { try { v ? localStorage.setItem(k, v) : localStorage.removeItem(k); } catch (e) {} };
   const PROV = { deepseek: { name: "DeepSeek", ls: "st-dk", ph: "sk-...", help: "DeepSeek 的 key 在 platform.deepseek.com 创建，按用量计费。" },
                  claude: { name: "Claude", ls: "st-ak", ph: "sk-ant-...", help: "Claude 的 key 在 console.anthropic.com 创建，按用量计费，和 Claude 会员是分开的。" } };
+  // a DeepSeek key saved in the old (Claude-only) field moves to the DeepSeek slot
+  if (lsg("st-ak") && !lsg("st-ak").startsWith("sk-ant-")) { if (!lsg("st-dk")) lss("st-dk", lsg("st-ak")); lss("st-ak", ""); }
   const provider = () => lsg("st-ap") || (lsg("st-dk") || !lsg("st-ak") ? "deepseek" : "claude");
   const dsModel = () => lsg("st-dm") || "deepseek-chat";
   const akey = () => lsg(PROV[provider()].ls);
