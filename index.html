@@ -192,6 +192,12 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 @media (hover: none) { .lec .ed { opacity: 1; } }
 .pnote { background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--cc, var(--accent)); border-radius: 8px; padding: 10px 14px; font-size: 14px; }
 .pnote .pn-h { font: 500 11px var(--mono); letter-spacing: .06em; color: var(--cc, var(--accent)); margin-bottom: 2px; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pqa { background: var(--card); border: 1px solid var(--line); border-left: 3px solid var(--star); border-radius: 8px; padding: 8px 14px 10px; font-size: 14px; display: grid; gap: 4px; min-width: 0; overflow-wrap: anywhere; }
+.pqa .pn-h { font: 500 11px var(--mono); letter-spacing: .06em; color: var(--star); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.pqa .q { font-weight: 600; }
+.pqa .q .quote { font-weight: 400; color: var(--muted); font-size: 13px; }
+.ask .paste { display: grid; gap: 6px; margin-top: 6px; }
+.ask .paste textarea { width: 100%; min-height: 90px; font: 13px/1.5 var(--ui); padding: 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
 .ptrans { background: var(--accent-soft); border-radius: 6px; padding: 8px 14px 10px; font-size: 14px; margin-top: -6px; }
 .ptrans .pn-h { font: 500 11px var(--mono); letter-spacing: .06em; color: var(--accent); margin-bottom: 2px; }
 .ptrans .md h4 { margin: 2px 0 4px; font-size: 14px; }
@@ -279,7 +285,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   const $ = id => document.getElementById(id);
   const WD = ["周日", "周一", "周二", "周三", "周四", "周五", "周六"];
   const desktopMQ = window.matchMedia("(min-width: 901px) and (pointer: fine)");
-  const S = { manifest: [], date: null, view: null, dayIdx: 0, pdf: null, pdfFile: null, pageBoxes: [], explain: {}, notes: {}, stars: {}, curPage: 1, db: null, editing: null, loadToken: 0 };
+  const S = { manifest: [], date: null, view: null, dayIdx: 0, pdf: null, pdfFile: null, pageBoxes: [], explain: {}, notes: {}, stars: {}, qa: {}, curPage: 1, db: null, editing: null, loadToken: 0 };
 
   const md = d => { const x = new Date(d + "T12:00:00"); return (x.getMonth() + 1) + "/" + x.getDate(); };
   const wd = d => WD[new Date(d + "T12:00:00").getDay()];
@@ -433,7 +439,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   // Put each explanation chunk into the PDF column, right after the slide it talks about.
   function placeNotes() {
     const pages = $("pages"); if (!S.pdf || !S.view) return;
-    pages.querySelectorAll(".pnote, .ptrans").forEach(n => n.remove());
+    pages.querySelectorAll(".pnote, .ptrans, .pqa").forEach(n => n.remove());
     const showTr = trOn();
     $("trbtn").setAttribute("aria-pressed", showTr ? "true" : "false");
     let anyTr = false;
@@ -449,6 +455,19 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
       });
     }));
     $("trbtn").hidden = !anyTr;
+    placeQa();
+  }
+  function placeQa() {
+    document.querySelectorAll("#pages .pqa").forEach(n => n.remove());
+    qaItems().forEach(x => {
+      const box = S.pageBoxes[x.page]; if (!box) return;
+      let after = box; while (after.nextElementSibling && after.nextElementSibling.classList.contains("ptrans") || after.nextElementSibling && after.nextElementSibling.classList.contains("pqa")) after = after.nextElementSibling;
+      const el = document.createElement("div"); el.className = "pqa"; el.dataset.id = x.id;
+      el.innerHTML = '<div class="pn-h"><span>问 Claude · 第 ' + x.page + ' 页</span><button class="tool" type="button">删除</button></div><div class="q">问：' + esc(x.q) +
+        (x.quote ? '<div class="quote">引用：' + esc(x.quote) + "</div>" : "") + '</div><div class="md">' + renderMd(x.a) + "</div>";
+      el.querySelector("button").onclick = () => { if (el.dataset.sure) delQa(x.id); else { el.dataset.sure = "1"; el.querySelector("button").textContent = "确定删除？"; } };
+      after.after(el);
+    });
   }
 
   function card(it) {
@@ -600,6 +619,41 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     bar.querySelectorAll("button").forEach(b => b.onclick = () => jumpTo(+b.dataset.n, null, null));
   }
 
+  // ---------- saved Q&A per slide (synced like stars; phone without token keeps them in this browser) ----------
+  const lsQa = d => "st-qa-" + d;
+  function lsQaGet(d) { try { return JSON.parse(localStorage.getItem(lsQa(d)) || "[]"); } catch (e) { return []; } }
+  function qaItems() {
+    if (!S.date) return [];
+    const remote = S.db ? ((S.qa[S.date] || {}).items || []) : [];
+    const ids = new Set(remote.map(x => x.id));
+    return remote.concat(lsQaGet(S.date).filter(x => !ids.has(x.id))).sort((a, b) => a.page - b.page || a.at - b.at);
+  }
+  async function addQa(x) {
+    x.id = x.id || Date.now().toString(36) + Math.random().toString(36).slice(2, 6); x.at = Date.now();
+    let synced = false;
+    if (S.db) { const items = ((S.qa[S.date] || {}).items || []).concat([x]); synced = await saveDoc("qa", S.date, { items, updatedAt: Date.now() }); if (synced) S.qa[S.date] = { items, updatedAt: Date.now() }; }
+    if (!synced) { const l = lsQaGet(S.date); l.push(x); try { localStorage.setItem(lsQa(S.date), JSON.stringify(l)); } catch (e) {} }
+    placeQa(); return synced;
+  }
+  async function delQa(id) {
+    try { localStorage.setItem(lsQa(S.date), JSON.stringify(lsQaGet(S.date).filter(x => x.id !== id))); } catch (e) {}
+    const items = (S.qa[S.date] || {}).items || [];
+    if (S.db && items.some(x => x.id === id)) { const left = items.filter(x => x.id !== id); if (await saveDoc("qa", S.date, { items: left, updatedAt: Date.now() })) S.qa[S.date] = { items: left, updatedAt: Date.now() }; }
+    placeQa();
+  }
+  function pasteBox(q, quote, page) {
+    const w = document.createElement("div"); w.className = "paste";
+    w.innerHTML = '<textarea placeholder="在 Claude 那边点回答下面的「复制」，回来粘贴到这里"></textarea><div class="row"><span class="muted"></span><button class="tool primary" type="button">保存到第 ' + page + ' 页</button></div>';
+    const ta = w.querySelector("textarea"), st = w.querySelector(".muted");
+    w.querySelector("button").onclick = async () => {
+      const a = ta.value.trim(); if (!a) { st.textContent = "先粘贴回答"; return; }
+      const ok = await addQa({ page, q, quote, a });
+      w.replaceWith(Object.assign(document.createElement("div"), { className: "md", innerHTML: renderMd(a) + '<p class="muted">' + (ok ? "已保存到第 " + page + " 页下面（已同步）。" : "已保存到第 " + page + " 页下面（只存在这台设备的浏览器里）。") + "</p>" }));
+      jumpTo(page, null, null);
+    };
+    return w;
+  }
+
   // ---------- quick ask (Claude API, user's own key) ----------
   const ASK = { conv: [], page: null, quote: "", busy: false, client: null, key: null };
   const akey = () => { try { return localStorage.getItem("st-ak") || ""; } catch (e) { return ""; } };
@@ -666,7 +720,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     if (win) { try { win.opener = null; } catch (e) {} win.location.href = url; } else { const a = $("askgo"); a.href = url; a.hidden = false; }
     addMsg("u", esc(q) + (ASK.quote ? '<div class="quote">' + esc(ASK.quote) + "</div>" : ""));
     addMsg("a", '<div class="md"><p>' + (t.short ? "已在 Claude 里打开，问题和这一页的翻译、带读已经填好，点发送就行。" : "已打开 Claude。") +
-      (copied ? (t.cut || !t.short ? "完整版（含课件原文）已复制，想让 Claude 看全文就把输入框清空后粘贴。" : "") : "（没能复制到剪贴板。）") + '</p><p class="muted">回答在 Claude 那边，用你的订阅额度，不花 API 费用。</p></div>');
+      (copied ? (t.cut || !t.short ? "完整版（含课件原文）已复制，想让 Claude 看全文就把输入框清空后粘贴。" : "") : "（没能复制到剪贴板。）") + '</p><p class="muted">回答在 Claude 那边，用你的订阅额度，不花 API 费用。复制回答后粘贴到下面，就会存到这一页课件下面。</p></div>').appendChild(pasteBox(q, ASK.quote, ASK.page));
     $("askq").value = ""; ASK.quote = ""; $("askquote").hidden = true;
     askStatus(win ? "" : "浏览器拦了新窗口，点上面的「打开 Claude」");
   }
@@ -713,7 +767,9 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
         ASK.conv.push({ role: "assistant", content: final.content });
         if (final.stop_reason === "max_tokens") box.insertAdjacentHTML("beforeend", '<p class="muted">（回答太长，被截断了）</p>');
         const acts = document.createElement("div"); acts.className = "acts";
-        acts.innerHTML = '<button class="tool" type="button" data-a="note">存进笔记</button><button class="tool" type="button" data-a="copy">复制回答</button>';
+        acts.innerHTML = '<button class="tool" type="button" data-a="page">存到这一页</button><button class="tool" type="button" data-a="note">存进笔记</button><button class="tool" type="button" data-a="copy">复制回答</button>';
+        const askedPage = ASK.page;
+        acts.querySelector('[data-a="page"]').onclick = async e => { const ok = await addQa({ page: askedPage, q, quote: quoteUsed, a: text }); e.target.textContent = ok ? "已存到第 " + askedPage + " 页" : "已存（只在这台设备）"; };
         acts.querySelector('[data-a="copy"]').onclick = () => copyText(text);
         acts.querySelector('[data-a="note"]').onclick = async e => {
           const o = pageOwner(ASK.page); if (!o) return;
@@ -795,15 +851,15 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   function setSync(on, txt) { $("dot").classList.toggle("on", on); $("synctxt").textContent = txt; }
   async function pull() {
     const r = await fetch(API + "?ref=" + DATA_BRANCH + "&t=" + Date.now(), { headers: hdr(), cache: "no-store" });
-    if (r.status === 404) { dataSha = null; return { explain: {}, notes: {}, stars: {} }; }
+    if (r.status === 404) { dataSha = null; return { explain: {}, notes: {}, stars: {}, qa: {} }; }
     if (!r.ok) throw new Error("GitHub " + r.status);
     const j = await r.json(); dataSha = j.sha;
     const d = JSON.parse(new TextDecoder().decode(await decryptBytes(b64.dec(j.content.replace(/\s/g, "")))));
-    return { explain: d.explain || {}, notes: d.notes || {}, stars: d.stars || {} };
+    return { explain: d.explain || {}, notes: d.notes || {}, stars: d.stars || {}, qa: d.qa || {} };
   }
   async function refresh() {
     try {
-      const d = await pull(); S.explain = d.explain; S.notes = d.notes; S.stars = d.stars;
+      const d = await pull(); S.explain = d.explain; S.notes = d.notes; S.stars = d.stars; S.qa = d.qa;
       S.db = tok() && desktopMQ.matches ? true : null;
       $("ghsum").textContent = tok() ? "编辑设置" : "✏️ 开启在线编辑"; if (tok()) { $("ghbox").classList.remove("need"); $("ghmsg").hidden = true; }
       setSync(true, S.db ? "已同步 · 可编辑" : (tok() ? "已同步" : "已同步 · 只读"));
@@ -832,7 +888,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
           const r = await fetch(API, { method: "PUT", headers: Object.assign(hdr(), { "Content-Type": "application/json" }), body: JSON.stringify(body) });
           if (r.status === 409 || r.status === 422) continue;
           if (!r.ok) { setSync(false, r.status === 401 || r.status === 403 ? "令牌无效或没有写权限" : "保存失败 " + r.status); return false; }
-          dataSha = (await r.json()).content.sha; S.explain = cur.explain; S.notes = cur.notes; S.stars = cur.stars; setSync(true, "已同步 · 可编辑");
+          dataSha = (await r.json()).content.sha; S.explain = cur.explain; S.notes = cur.notes; S.stars = cur.stars; S.qa = cur.qa; setSync(true, "已同步 · 可编辑");
           return true;
         } catch (e) { setSync(false, "保存失败：" + e.message); }
       }
