@@ -115,6 +115,11 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, summary:focu
 .secs button span { overflow-wrap: anywhere; text-align: left; }
 
 .block { border-top: 1px solid var(--line); padding-top: 10px; display: grid; gap: 6px; min-width: 0; }
+.prog .prow { display: grid; grid-template-columns: 4.6em minmax(0, 1fr); gap: 8px; align-items: center; font-size: 13px; color: var(--muted); }
+.prog .prow .tool { justify-self: start; }
+.prog input { width: 100%; min-width: 0; font: 14px var(--ui); padding: 7px 9px; border-radius: 7px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.prog input:focus { outline: 2px solid var(--cc, var(--accent)); outline-offset: 0; border-color: transparent; }
+.prog .pnote2 { margin: 0; font-size: 12px; }
 .bhead { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
 .bhead h3 { margin: 0; font-size: 13px; font-weight: 600; color: var(--muted); letter-spacing: .02em; }
 .bhead .tag { font: 11px var(--mono); color: var(--muted); }
@@ -421,7 +426,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     dates.innerHTML = ""; sel.innerHTML = "";
     S.manifest.forEach(m => {
       const b = document.createElement("button"); b.type = "button"; b.dataset.date = m.date;
-      b.innerHTML = "<span>" + md(m.date) + " " + wd(m.date) + "</span><span>" + m.pages + " 页</span>";
+      b.innerHTML = "<span>" + md(m.date) + " " + wd(m.date) + "</span><span>" + (m.pages ? m.pages + " 页" : "无课件") + "</span>";
       b.addEventListener("click", () => openDate(m.date));
       dates.appendChild(b);
       const o = document.createElement("option"); o.value = m.date; o.textContent = md(m.date) + " " + wd(m.date); sel.appendChild(o);
@@ -456,7 +461,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   // ---------- render ----------
   function render() {
     const v = S.view; if (!v) return;
-    const seg = $("seg"); seg.innerHTML = "";
+    const seg = $("seg"); seg.innerHTML = ""; seg.hidden = v.days.length < 2;
     v.days.forEach((d, i) => {
       const b = document.createElement("button"); b.type = "button";
       b.setAttribute("aria-pressed", i === S.dayIdx ? "true" : "false");
@@ -621,6 +626,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
       el.appendChild(explainBlock(it));
       el.appendChild(notesBlock(it));
     }
+    if (it.type === "session" && !it.self && !/取消/.test(it.note || "")) el.appendChild(progBlock(it));
     if (it.files.length && it.folder) {
       const det = document.createElement("details"); det.className = "files";
       det.innerHTML = "<summary>F 盘里的原文件</summary><ul>" + it.files.map(f => "<li><code>" + esc(it.folder) + "\\</code>" + esc(f) + "</li>").join("") + "</ul>";
@@ -1022,6 +1028,36 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   syncAskMode();
   document.body.classList.toggle("desk", desktopMQ.matches);
 
+  // 当下进度: how far the class got / how far I got. Saved like notes (prog-<key>, myprog-<key>); the nightly routine sends new entries to the course project.
+  const progTimers = {};
+  function srcPage(it, n) {
+    const sec = (it.sections || []).find(x => n >= x.page && n < x.page + x.count); if (!sec) return "";
+    const m = / · (.+?)(?: p(\d+)(?:-\d+)?)?$/.exec(sec.title) || [];
+    return (m[1] || "") + " 第 " + ((+m[2] || 1) + n - sec.page) + " 页";
+  }
+  function progBlock(it) {
+    const b = document.createElement("div"); b.className = "block prog";
+    b.innerHTML = '<div class="bhead"><h3>当下进度</h3><span class="tag pst"></span></div>' +
+      '<label class="prow"><span>课上讲到</span><input type="text" data-k="prog-" placeholder="比如 Slides 2-30 / 第 3 章 3.2 / 讲完例 2.4"></label>' +
+      (it.sections && it.sections.length ? '<div class="prow"><span></span><button class="tool" type="button" data-a="cur">填入正在看的这页</button></div>' : "") +
+      '<label class="prow"><span>我学到</span><input type="text" data-k="myprog-" placeholder="自己看到哪、哪里没懂（可选）"></label>' +
+      '<p class="muted pnote2">每晚推送时会自动发给 ' + esc(it.course) + ' 课程项目，它会按这个调整之后的讲解。' + (S.db ? "" : "这台设备只存在本机，在电脑上（开了在线编辑）填才会发过去。") + "</p>";
+    const st = b.querySelector(".pst");
+    b.querySelectorAll("input").forEach(inp => {
+      const key = inp.dataset.k + it.key; inp.value = noteText(key); healNote(key);
+      const save = () => { clearTimeout(progTimers[key]); if (inp.value !== noteText(key)) saveSmall(key, inp.value.trim() ? inp.value : "", st); };
+      inp.addEventListener("input", () => { st.textContent = "未保存"; clearTimeout(progTimers[key]); progTimers[key] = setTimeout(save, 900); });
+      inp.addEventListener("blur", save);
+      inp.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } });
+    });
+    const cur = b.querySelector('[data-a="cur"]');
+    if (cur) cur.onclick = () => {
+      const p = srcPage(it, S.curPage || 0), inp = b.querySelector('[data-k="prog-"]');
+      if (!p) { st.textContent = "先在右边打开这门课的课件"; return; }
+      inp.value = "讲到 " + p; inp.dispatchEvent(new Event("input")); inp.focus();
+    };
+    return b;
+  }
   function notesBlock(it) {
     const b = document.createElement("div"); b.className = "block";
     const text = noteText(it.key);
