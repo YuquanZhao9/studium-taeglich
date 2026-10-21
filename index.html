@@ -434,7 +434,10 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     sel.addEventListener("change", () => openDate(sel.value));
     const hm = /^#d(\d{8})(?:-([A-Za-z]+))?/.exec(location.hash || "") || [];
     const hit = S.manifest.find(m => m.date.replaceAll("-", "") === hm[1]);
-    await openDate((hit || S.manifest[0] || {}).date);
+    // no date in the link: open today's page (Berlin time), else the next day that has one, else the newest
+    let today = ""; try { today = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Berlin" }).format(new Date()); } catch (e) { today = new Date().toISOString().slice(0, 10); }
+    const up = S.manifest.filter(m => m.date >= today).sort((x, y) => x.date < y.date ? -1 : 1)[0];
+    await openDate((hit || up || S.manifest[0] || {}).date);
     if (hit && hm[2] && S.view) {
       const want = hm[2].toUpperCase();
       const di = S.view.days.findIndex(d => d.items.some(x => x.type === "session" && !x.note && x.course.toUpperCase() === want));
