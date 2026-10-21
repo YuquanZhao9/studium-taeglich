@@ -152,6 +152,8 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 .page .no { position: absolute; right: 8px; bottom: 6px; font: 11px var(--mono); color: #8a8fa0; }
 .lecture { gap: 0; min-width: 0; }
 .lec, .lec .md { min-width: 0; overflow-wrap: anywhere; }
+.md .f.fk { font-family: var(--read); font-size: 15px; white-space: normal; }
+.md .f.fk .katex { font-size: 1.08em; }
 .lec .md .f { white-space: pre-wrap; overflow-x: auto; max-width: 100%; }
 .lec { scroll-margin-top: 110px; scroll-margin-bottom: 40px; border-left: 3px solid transparent; padding: 8px 10px 8px 12px; margin-left: -12px; border-radius: 0 8px 8px 0; transition: background .15s; }
 .lec[data-from] { cursor: pointer; }
@@ -341,8 +343,23 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   const wd = d => WD[new Date(d + "T12:00:00").getDay()];
   const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const cssId = k => k.replace(/[^a-zA-Z0-9]/g, "_");
+  // Formulas in walkthroughs render as math, never as code: $…$ via KaTeX, bare x_{i} / e^{jω} as sub/superscript.
+  const KX = (src, d) => { try { return katex.renderToString(src, { displayMode: !!d, throwOnError: true, strict: false }); } catch (e) { return null; } };
+  const toTex = t => t.replace(/…/g, "\\ldots ").replace(/ {2,}/g, " \\quad ")
+    .replace(/[\u3000-\u303f\u4e00-\u9fff\uff00-\uffef]+(?:[ A-Za-z0-9]*[\u3000-\u303f\u4e00-\u9fff\uff00-\uffef]+)*/g, m => "\\text{" + m + "}");
+  const subsup = h => h.replace(/([_^])\{([^{}]{1,40})\}/g, (m, c, x) => c === "_" ? "<sub>" + x + "</sub>" : "<sup>" + x + "</sup>")
+    .replace(/(^|[^A-Za-z0-9_])([A-Za-z])_([A-Za-z0-9]{1,3})(?![A-Za-z0-9_{])/g, "$1$2<sub>$3</sub>");
+  function fline(s) {
+    if (window.katex) { if (/\$/.test(s)) return inline(s); const h = KX(toTex(s)); if (h) return h; }
+    return subsup(esc(s));
+  }
   function inline(s) {
-    return esc(s).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>")
+    const parts = String(s).split(/(\$\$[^$]+\$\$|\$[^$\n]+\$)/);
+    if (parts.length > 1 && window.katex) return parts.map((p, i) => i % 2 ? (KX(p.replace(/^\$\$?|\$?\$$/g, ""), p.startsWith("$$")) || esc(p)) : inline1(p)).join("");
+    return inline1(s);
+  }
+  function inline1(s) {
+    return subsup(esc(s)).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>").replace(/`([^`]+)`/g, "<code>$1</code>")
       .replace(/([\u4e00-\u9fa5A-Za-z₀-₉]{1,12})（([A-Za-z][A-Za-z0-9 ,.'\-–]{1,60})）/g, '<span class="term">$1</span>（$2）')
       .replace(/（(推断|讲义之外|这步是我补的|补充)）/g, '<span class="tag-inf">（$1）</span>');
   }
@@ -355,7 +372,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
       const line = raw.trimEnd();
       if (/^#{2,4}\s/.test(line)) { flushP(); flushL(); out.push("<h4>" + inline(line.replace(/^#+\s/, "").replace(/^@\d+(\s*[-–]\s*\d+)?\s*/, "").replace(/\s+@\d+(-\d+)?\s*$/, "")).replace(/（(核心|重点)）/g, '<span class="core">$1</span>') + "</h4>"); }
       else if (/^\s*[-*]\s/.test(line)) { flushP(); (list = list || []).push(line.replace(/^\s*[-*]\s/, "")); }
-      else if (/^>\s?/.test(line)) { flushP(); flushL(); out.push('<span class="f">' + esc(line.replace(/^>\s?/, "")) + "</span>"); }
+      else if (/^>\s?/.test(line)) { flushP(); flushL(); out.push('<span class="f fk">' + fline(line.replace(/^>\s?/, "")) + "</span>"); }
       else if (!line.trim()) { flushP(); flushL(); }
       else { flushL(); para.push(line); }
     }
