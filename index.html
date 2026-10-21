@@ -263,6 +263,10 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 .fxprev { margin-top: 4px; padding: 6px 10px; border: 1px dashed var(--line); border-radius: 8px; background: var(--card); color: var(--ink); overflow-x: auto; font-size: 15px; min-height: 0; }
 .fxprev .fxerr { color: var(--bad); font: 12px var(--mono); }
 .fxprev .fxlab { color: var(--muted); font-size: 11px; margin-right: 8px; }
+.fxview { white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; cursor: text; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); padding: 8px 10px; }
+.fxview .katex-display { margin: 6px 0; overflow-x: auto; overflow-y: hidden; }
+.fxview:hover { border-color: var(--accent); }
+.fxhide { display: none !important; }
 </style>
 </head>
 <body>
@@ -1390,6 +1394,46 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   const scan = (root) => { if (root.tagName === "TEXTAREA") apply(root); else if (root.querySelectorAll) root.querySelectorAll("textarea").forEach(apply); };
   scan(document.body);
   new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => n.nodeType === 1 && scan(n)))).observe(document.body, { childList: true, subtree: true });
+})();
+</script>
+<script>
+/* Notes show rendered formulas whenever the box is not being edited; click (or tap) the box to edit the source. */
+(() => {
+  const kind = (ta) => ta.id === "qta" || ta.id === "mqta" || ta.closest(".segx") || ta.classList.contains("notes") || ta.closest(".pnote");
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const k = (src, d) => { try { return katex.renderToString(src, { displayMode: d, throwOnError: true, strict: false }); } catch (e) { return esc(d ? "$$" + src + "$$" : "$" + src + "$"); } };
+  const render = (v) => {
+    let out = "", i = 0; const re = /\$\$([\s\S]+?)\$\$|\$((?:\\.|[^$\\])+?)\$/g; let m;
+    while ((m = re.exec(v))) { out += esc(v.slice(i, m.index)) + (m[1] != null ? k(m[1], true) : k(m[2], false)); i = re.lastIndex; }
+    return out + esc(v.slice(i));
+  };
+  const has = (v) => /\$[^$]+\$/.test(v);
+  const views = new WeakMap(), all = new Set();
+  const sync = (ta) => {
+    if (!window.katex || !ta.isConnected) return;
+    let vw = views.get(ta);
+    const show = document.activeElement !== ta && has(ta.value);
+    if (!show) { if (vw) vw.classList.add("fxhide"); ta.classList.remove("fxhide"); return; }
+    if (!vw) {
+      vw = document.createElement("div"); vw.className = "fxview"; vw.tabIndex = 0; vw.title = "点一下编辑";
+      ta.insertAdjacentElement("beforebegin", vw); views.set(ta, vw);
+      const edit = (e) => { if (e.target.closest && e.target.closest("a")) return; vw.classList.add("fxhide"); ta.classList.remove("fxhide"); ta.focus(); const n = ta.value.length; ta.setSelectionRange(n, n); };
+      vw.addEventListener("click", edit); vw.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); edit(e); } });
+    }
+    if (vw.dataset.src !== ta.value) { vw.innerHTML = render(ta.value); vw.dataset.src = ta.value; }
+    const h = ta.offsetHeight; if (h) vw.style.minHeight = h + "px";
+    const cs = getComputedStyle(ta); vw.style.font = cs.font; vw.style.maxHeight = "none";
+    vw.classList.remove("fxhide"); ta.classList.add("fxhide");
+    const pv = ta.nextElementSibling; if (pv && pv.classList.contains("fxprev")) pv.hidden = true;
+  };
+  const add = (ta) => { if (ta.tagName === "TEXTAREA" && kind(ta) && !all.has(ta)) { all.add(ta); setTimeout(() => sync(ta), 0); } };
+  const scan = (r) => { if (r.tagName === "TEXTAREA") add(r); else if (r.querySelectorAll) r.querySelectorAll("textarea").forEach(add); };
+  document.addEventListener("focusout", (e) => { if (all.has(e.target)) setTimeout(() => sync(e.target), 150); }, true);
+  document.addEventListener("focusin", (e) => { if (all.has(e.target)) { const vw = views.get(e.target); if (vw) vw.classList.add("fxhide"); e.target.classList.remove("fxhide"); } }, true);
+  new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => n.nodeType === 1 && scan(n)))).observe(document.body, { childList: true, subtree: true });
+  scan(document.body);
+  // Saved notes arrive later (sync from other devices), so refresh views whose text changed.
+  setInterval(() => all.forEach((ta) => { if (!ta.isConnected) { all.delete(ta); return; } if (document.activeElement !== ta) { const vw = views.get(ta); if (!vw ? has(ta.value) : vw.dataset.src !== ta.value) sync(ta); } }), 1500);
 })();
 </script>
 </body>
