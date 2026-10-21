@@ -260,6 +260,8 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 .fxpop .fxr { min-width: 0; overflow: hidden; white-space: nowrap; font-size: 15px; }
 .fxpop .fxd { color: var(--muted); font-size: 12px; text-align: right; }
 .fxpop code { grid-column: 1 / -1; font: 11px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fxpop .fxq { width: 100%; font: 14px var(--ui); padding: 7px 9px; margin: 2px 0 4px; border-radius: 7px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+.fxpop .fxq:focus { outline: 2px solid var(--accent); outline-offset: 0; }
 .fxpop .fxh { padding: 4px 8px 2px; color: var(--muted); font-size: 11px; letter-spacing: .04em; }
 .fxpop .fxf { border-top: 1px solid var(--line); margin-top: 4px; padding: 5px 8px 2px; color: var(--muted); font-size: 11px; }
 .fxprev { margin-top: 4px; padding: 6px 10px; border: 1px dashed var(--line); border-radius: 8px; background: var(--card); color: var(--ink); overflow-x: auto; font-size: 15px; min-height: 0; }
@@ -1235,6 +1237,8 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   ]);
   const SUB = ["_{i}", "_{n}", "_{k}", "_{0}", "_{1}", "_{2}", "_{ij}", "_{t}", "_{N}", "_{\\theta}", "_{\\max}", "_{\\min}", "_{\\mathrm{ML}}", "_{\\mathrm{ref}}"];
   const SUP = ["^{2}", "^{T}", "^{H}", "^{-1}", "^{*}", "^{(k)}", "^{n}", "^{\\top}", "^{-\\frac{1}{2}}", "^{\\prime}"];
+  const SUPSUB = [["^{T}", "转置 上标"], ["^{H}", "共轭转置 埃尔米特 上标"], ["^{-1}", "逆 逆矩阵 倒数 上标"], ["^{2}", "平方 上标"], ["^{*}", "共轭 最优 上标"], ["^{(k)}", "第k次 迭代 上标"], ["^{\\prime}", "撇 导数 上标"], ["^{-\\frac{1}{2}}", "负二分之一次方 上标"],
+    ["_{i}", "下标 i"], ["_{n}", "下标 n"], ["_{k}", "下标 k"], ["_{ij}", "下标 ij 矩阵元素"], ["_{0}", "下标 0 初始"], ["_{\\max}", "下标 最大"], ["_{\\mathrm{ML}}", "下标 最大似然"]].map(([s, d]) => [C + s, d]);
   const SNIP = [
     ["H(X) = -\\sum_{x} p(x)\\log_2 p(x)", "ITCL 熵"], ["H(X\\mid Y)", "ITCL 条件熵"], ["I(X;Y) = H(X) - H(X\\mid Y)", "ITCL 互信息"], ["D(p\\,\\|\\,q) = \\sum_x p(x)\\log\\frac{p(x)}{q(x)}", "ITCL KL 散度"], ["C = \\max_{p(x)} I(X;Y)", "ITCL 信道容量"],
     ["\\hat{\\theta}_{\\mathrm{ML}} = \\arg\\max_{\\theta} p(\\mathbf{x};\\theta)", "SASP 最大似然"], ["\\operatorname{Var}(\\hat{\\theta}) \\ge \\frac{1}{I(\\theta)}", "SASP CRB"], ["I(\\theta) = -\\mathbb{E}\\left[\\frac{\\partial^2 \\ln p(\\mathbf{x};\\theta)}{\\partial \\theta^2}\\right]", "SASP Fisher 信息"], ["\\mathbf{x} \\sim \\mathcal{N}(\\boldsymbol{\\mu}, \\mathbf{C})", "SASP 高斯"], ["\\mathbb{E}[\\hat{\\theta}] = \\theta", "SASP 无偏"],
@@ -1242,6 +1246,21 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     ["\\mathbf{p}_{b} = \\mathbf{R}\\,\\mathbf{p}_{c} + \\mathbf{t}", "AR 坐标变换"], ["s\\begin{bmatrix} u \\\\ v \\\\ 1 \\end{bmatrix} = \\mathbf{K}\\begin{bmatrix} X \\\\ Y \\\\ Z \\end{bmatrix}", "AR 针孔投影"], ["\\mathbf{K} = \\begin{bmatrix} f_x & 0 & c_x \\\\ 0 & f_y & c_y \\\\ 0 & 0 & 1 \\end{bmatrix}", "AR 内参"], ["\\mathbf{T} = \\begin{bmatrix} \\mathbf{R} & \\mathbf{t} \\\\ \\mathbf{0}^{T} & 1 \\end{bmatrix}", "AR 齐次变换"], ["\\mathbf{R}(\\theta) = \\begin{bmatrix} \\cos\\theta & -\\sin\\theta \\\\ \\sin\\theta & \\cos\\theta \\end{bmatrix}", "AR 旋转矩阵"],
     ["\\frac{" + C + "}{}", "分数"], ["\\sum_{i=1}^{N} " + C, "求和"], ["\\mathbf{" + C + "}", "粗体"],
   ];
+  const ALIAS = {"分数": "除法 比值 分式 除以", "根号": "平方根 开方", "n 次根": "开方 根号", "求和": "累加 西格玛 sum 加和", "连乘": "乘积 product", "积分": "定积分 不定积分", "极限": "趋于 无穷", "log 以 2 为底": "对数 比特", "log": "对数", "ln": "自然对数", "exp": "指数 e的", "最大": "最大值", "最小": "最小值", "argmax": "最大化 最优参数", "argmin": "最小化", "估计值 帽子": "估计 帽 hat 估计量", "均值 横线": "平均 共轭 上横线", "波浪": "近似 tilde", "导数 点": "时间导数 一阶导", "向量 箭头": "矢量", "粗体 向量/矩阵": "加粗 矩阵 向量 黑体", "粗体希腊": "加粗", "黑板体 R E": "实数 期望 空心", "花体 N X": "高斯 正态 集合 书法", "正体": "直立 下标文字", "文字": "中文 汉字 文本", "期望": "均值 数学期望 平均", "方差": "离散程度 二阶矩", "协方差": "相关 协方差矩阵", "迹": "矩阵的迹 对角线和", "行列式": "矩阵行列式", "秩": "矩阵的秩", "实数集": "实数", "复数集": "复数", "自然数": "整数", "n×n 实矩阵": "矩阵空间 方阵", "括号 自动大小": "圆括号 小括号", "方括号": "中括号", "花括号": "大括号 集合", "绝对值": "模", "2 范数": "欧氏范数 长度 模长 范数", "F 范数": "Frobenius 矩阵范数 范数", "内积": "点积 内积空间", "矩阵": "矩阵 二乘二 方阵", "列向量": "向量 竖向量", "分段": "分段函数 情况", "偏导 ∂": "偏微分", "偏导数": "偏微分 梯度", "梯度 ∇": "nabla 导数", "无穷": "无穷大 无限", "点乘": "乘号 乘以", "叉乘 ×": "乘号 乘 维度", "克罗内克积 ⊗": "张量积 kron", "异或 ⊕": "模2加 直和", "复合 ∘": "函数复合 哈达玛积", "±": "正负 加减", "≤": "小于等于 不大于", "≥": "大于等于 不小于", "≠": "不等于", "≈": "约等于 近似", "服从 ~": "分布 服从于", "正比 ∝": "成正比 比例", "≡": "恒等 同余", "定义为": "定义 记作", "→": "箭头 趋于 映射", "⇒ 推出": "推导 蕴含 所以", "⇔ 等价": "当且仅当 充要", "↦": "映射到", "属于": "元素 在", "不属于": "不在", "子集": "包含", "子集或等": "包含于", "并": "并集", "交": "交集", "空集": "空", "任意": "所有 对任意", "存在": "有", "…": "省略号 等等", "⋯": "省略号 居中", "转置 ⊤": "转置", "条件 |": "条件概率 给定", "空格": "空白 间隔", "ITCL 熵": "信息熵 香农熵 不确定性", "ITCL 条件熵": "条件 熵", "ITCL 互信息": "互信息 信息量", "ITCL KL 散度": "相对熵 散度 距离", "ITCL 信道容量": "容量 信道", "SASP 最大似然": "似然 极大似然 ML 估计", "SASP CRB": "克拉美罗 下界 方差下界 克拉美-罗", "SASP Fisher 信息": "费舍尔 信息", "SASP 高斯": "正态分布 高斯分布", "SASP 无偏": "无偏估计", "MC QR 分解": "正交分解 分解", "MC SVD": "奇异值分解 分解", "MC 特征值": "特征向量 本征值", "MC 条件数": "病态", "MC 最小二乘": "最小二乘法 正规方程 LS", "AR 坐标变换": "旋转平移 变换", "AR 针孔投影": "相机 投影 像素", "AR 内参": "相机内参 焦距 K矩阵", "AR 齐次变换": "齐次矩阵 位姿", "AR 旋转矩阵": "旋转", "粗体": "加粗"};
+  const GREEK_ZH = {"alpha": "阿尔法", "beta": "贝塔", "gamma": "伽马", "delta": "德尔塔", "epsilon": "艾普西龙", "varepsilon": "艾普西龙", "zeta": "泽塔", "eta": "伊塔", "theta": "西塔", "vartheta": "西塔", "kappa": "卡帕", "lambda": "兰姆达 拉姆达", "mu": "缪 均值", "nu": "纽", "xi": "克西", "pi": "派 圆周率", "rho": "柔 相关系数", "sigma": "西格玛 标准差", "tau": "套", "phi": "斐 相位", "varphi": "斐 相位", "chi": "卡方", "psi": "普西", "omega": "欧米伽 角频率"};
+  const PY = {"一":"yi","上":"shang","下":"xia","不":"bu","且":"qie","中":"zhong","为":"wei","义":"yi","乘":"cheng","书":"shu","了":"le","二":"er","于":"yu","互":"hu","交":"jiao","仅":"jin","从":"cong","令":"ling","以":"yi","件":"jian","价":"jia","任":"ren","伊":"yi","优":"you","估":"gu","似":"shi","伽":"ga","位":"wei","体":"ti","余":"yu","作":"zuo","例":"li","信":"xin","值":"zhi","偏":"pian","像":"xiang","元":"yuan","充":"chong","克":"ke","公":"gong","兰":"lan","共":"gong","关":"guan","内":"nei","写":"xie","农":"nong","况":"kuang","准":"zhun","减":"jian","出":"chu","函":"han","分":"fen","列":"lie","到":"dao","加":"jia","动":"dong","包":"bao","化":"hua","协":"xie","卡":"ka","参":"can","叉":"cha","变":"bian","号":"hao","合":"he","同":"tong","向":"xiang","含":"han","周":"zhou","命":"ming","和":"he","哈":"ha","圆":"yuan","在":"zai","均":"jun","坐":"zuo","塔":"ta","复":"fu","大":"da","头":"tou","奇":"qi","套":"tao","姆":"mu","姿":"zi","子":"zi","孔":"kong","字":"zi","存":"cun","学":"xue","定":"ding","实":"shi","容":"rong","对":"dui","导":"dao","射":"she","小":"xiao","尔":"er","居":"ju","属":"shu","差":"cha","布":"bu","希":"xi","帕":"pa","常":"chang","帽":"mao","平":"ping","并":"bing","底":"di","度":"du","开":"kai","异":"yi","式":"shi","张":"zhang","当":"dang","影":"ying","征":"zheng","微":"wei","德":"de","心":"xin","态":"tai","性":"xing","恒":"heng","息":"xi","情":"qing","意":"yi","懂":"dong","成":"cheng","我":"wo","或":"huo","所":"suo","投":"tou","拉":"la","括":"kuo","指":"zhi","换":"huan","推":"tui","撇":"pie","散":"san","数":"shu","整":"zheng","文":"wen","斐":"fei","斯":"si","方":"fang","旋":"xuan","无":"wu","时":"shi","映":"ying","普":"pu","最":"zui","有":"you","服":"fu","望":"wang","期":"qi","本":"ben","机":"ji","条":"tiao","板":"ban","极":"ji","柔":"rou","标":"biao","根":"gen","格":"ge","梯":"ti","概":"gai","模":"mo","横":"heng","次":"ci","欧":"ou","正":"zheng","段":"duan","比":"bi","氏":"shi","求":"qiu","汉":"han","没":"mei","法":"fa","波":"bo","泽":"ze","派":"pai","浪":"lang","点":"dian","焦":"jiao","然":"ran","熵":"shang","特":"te","率":"lv","玛":"ma","用":"yong","界":"jie","略":"lve","病":"bing","白":"bai","的":"de","直":"zhi","相":"xiang","省":"sheng","矢":"shi","矩":"ju","确":"que","离":"li","秩":"zhi","积":"ji","移":"yi","程":"cheng","穷":"qiong","空":"kong","立":"li","竖":"shu","第":"di","等":"deng","箭":"jian","米":"mi","粗":"cu","系":"xi","素":"su","累":"lei","约":"yue","纽":"niu","线":"xian","给":"gei","绝":"jue","维":"wei","缪":"mou","罗":"luo","置":"zhi","美":"mei","考":"kao","腊":"la","自":"zi","舍":"she","艾":"ai","花":"hua","范":"fan","蕴":"yun","行":"xing","西":"xi","要":"yao","规":"gui","角":"jiao","解":"jie","计":"ji","记":"ji","贝":"bei","负":"fu","费":"fei","趋":"qu","距":"ju","转":"zhuan","轭":"e","达":"da","过":"guo","近":"jin","连":"lian","迹":"ji","逆":"ni","道":"dao","量":"liang","针":"zhen","长":"zhang","间":"jian","阵":"zhen","阶":"jie","阿":"a","限":"xian","除":"chu","隔":"ge","集":"ji","频":"pin","香":"xiang","马":"ma","高":"gao","黑":"hei","齐":"qi","龙":"long"};
+  // Search text for an item: LaTeX + Chinese name + aliases + full pinyin + pinyin initials (熵 → shang / s, 互信息 → huxinxi / hxx).
+  const pyOf = (t) => { let full = "", ini = "", words = t.split(/\s+/); for (const w of words) { let f = "", i = ""; for (const ch of w) { const p = PY[ch]; if (p) { f += p; i += p[0]; } } if (f) { full += " " + f; ini += " " + i; } } return full + ini; };
+  const hayCache = new Map();
+  const hay = (s, d) => { const k = s + "\u0001" + d; let h = hayCache.get(k); if (h == null) { const g = (s.match(/^\\([a-z]+)$/) || [])[1]; const zh = d + " " + (ALIAS[d] || "") + " " + ((g && GREEK_ZH[g]) || "") + (/^[_^]/.test(s) ? " " + (s[0] === "_" ? "下标 角标" : "上标") : ""); h = (s + " " + zh + " " + pyOf(zh)).toLowerCase(); hayCache.set(k, h); } return h; };
+  const search = (q, list) => {
+    const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+    if (!terms.length) { const seen = new Set(); return list.filter((it) => { const k = it[0].replace(C, ""); if (seen.has(k)) return false; seen.add(k); return true; }); }
+    const scored = [];
+    list.forEach((it, idx) => { const h = hay(it[0], it[1] || ""); if (terms.every((t) => h.includes(t))) { const d = (it[1] || "").toLowerCase(); scored.push([(d.includes(terms[0]) ? 0 : 1) + (it[0].toLowerCase().startsWith(terms[0]) ? 0 : 1), idx, it]); } });
+    const seen = new Set();
+    return scored.sort((a, b) => a[0] - b[0] || a[1] - b[1]).map((x) => x[2]).filter((it) => { const k = it[0].replace(C, ""); if (seen.has(k)) return false; seen.add(k); return true; });
+  };
   const isBox = (t) => t && t.tagName === "TEXTAREA";
   const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const tex = (s, display, soft) => {
@@ -1255,7 +1274,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   // All formulas the user already wrote (this box + saved notes), newest first: offered first after $.
   const mine = (ta) => {
     const seen = new Set(), out = [];
-    const add = (txt) => { (txt.match(/\$([^$\n]{2,120})\$/g) || []).forEach((m) => { const f = m.slice(1, -1).trim(); if (f && !seen.has(f)) { seen.add(f); out.push([f, "我写过的"]); } }); };
+    const add = (txt) => { const re = /\$([^$\n]{2,120})\$/g; let m; while ((m = re.exec(txt))) { const f = m[1].trim(); if (!f || seen.has(f)) continue; seen.add(f); const lab = (txt.slice(Math.max(0, m.index - 14), m.index).split(/[\n$。；;]/).pop() || "").replace(/[：:，,\s]+$/, "").trim(); out.push([f, "我写过的" + (lab ? " · " + lab : "")]); } };
     add(ta.value); out.reverse();
     try { for (let i = 0; i < localStorage.length && out.length < 40; i++) { const k = localStorage.key(i); if (/^st-nl-|^st-q/.test(k)) add(String(localStorage.getItem(k) || "")); } } catch (e) {}
     return out.slice(0, 12);
@@ -1296,10 +1315,11 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
       const used = usedSubs(ta, ch).filter((s) => !base.includes(s));
       return { from: pos - 1, head: ch === "_" ? "下标" : "上标", items: used.concat(base).map((s) => [s, used.includes(s) ? "我用过的" : ""]), sub: true };
     }
-    if (f && !f[2] && (m = before.slice(f[0] - 1).match(/^\$([^\s$\\]{0,12})$/))) {
-      const q = m[1].toLowerCase(), all = mine(ta).concat(SNIP);
-      const list = q ? all.filter(([s, d]) => s.toLowerCase().startsWith(q) || d.toLowerCase().includes(q)) : all;
-      return list.length ? { from: f[0], head: q ? "公式" : "常用公式（继续输入字母可筛选，如 H、SASP、MC）", items: list.slice(0, 30), close: true } : null;
+    if (f && !f[2] && (m = before.slice(f[0] - 1).match(/^\$([^$\\\n]{0,16})$/)) && !/\s$/.test(m[1])) {
+      const q = m[1], all = mine(ta).concat(SNIP, CMDS, SUPSUB);
+      const list = search(q, all);
+      if (!list.length && !/[\u4e00-\u9fff]/.test(q)) return null;
+      return { from: f[0], head: "", items: list.slice(0, 40), close: true, search: true, q, all };
     }
     return null;
   };
@@ -1320,20 +1340,47 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   const show = (ta, ctx) => {
     if (!pop) {
       pop = document.createElement("div"); pop.className = "fxpop"; pop.setAttribute("role", "listbox"); document.body.appendChild(pop);
-      pop.addEventListener("mousedown", (e) => { e.preventDefault(); const it = e.target.closest(".fxi"); if (it && st) { st.sel = +it.dataset.i; pick(); } });
+      pop.addEventListener("mousedown", (e) => { if (e.target.closest(".fxq")) return; e.preventDefault(); const it = e.target.closest(".fxi"); if (it && st) { st.sel = +it.dataset.i; pick(); } });
+      pop.addEventListener("input", (e) => { if (e.target.classList.contains("fxq") && !e.isComposing) refilter(e.target.value); });
+      pop.addEventListener("compositionend", (e) => { if (e.target.classList.contains("fxq")) refilter(e.target.value); });
+      pop.addEventListener("keydown", (e) => {
+        if (!e.target.classList.contains("fxq") || !st || e.isComposing || e.keyCode === 229) return;
+        if (nav(e)) return;
+        if (e.key === "Escape") { e.preventDefault(); const ta = st.ta; close(); ta.focus(); }
+      });
     }
-    st = Object.assign({ ta, sel: 0 }, ctx);
+    st = Object.assign({ ta, sel: 0, pos: ta.selectionStart }, ctx);
     paint();
     const p = caretXY(ta), w = pop.offsetWidth || 340, h = Math.min(300, pop.scrollHeight);
     let x = Math.max(8, Math.min(p.x, innerWidth - w - 8)), y = p.y + p.lh + 4;
     if (y + h > innerHeight - 8) y = Math.max(8, p.y - h - 4);
     pop.style.left = x + "px"; pop.style.top = y + "px";
   };
+  const refilter = (q) => { if (!st) return; st.q = q; st.items = search(q, st.all).slice(0, 40); st.sel = 0; paintList(); };
+  const nav = (e) => {
+    const n = st.items.length;
+    if (e.key === "ArrowDown" && n) st.sel = (st.sel + 1) % n;
+    else if (e.key === "ArrowUp" && n) st.sel = (st.sel - 1 + n) % n;
+    else if (((e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.shiftKey) || e.key === "Tab") && n) { e.preventDefault(); e.stopPropagation(); pick(); return true; }
+    else return false;
+    e.preventDefault(); e.stopPropagation(); paintList(); return true;
+  };
   const paint = () => {
     pop.hidden = false;
-    pop.innerHTML = '<div class="fxh">' + esc(st.head) + "</div>" + st.items.map(([s, d], i) =>
+    if (st.search) {
+      let q = pop.querySelector(".fxq");
+      if (!q) { pop.innerHTML = '<input class="fxq" type="search" enterkeyhint="done" autocomplete="off" placeholder="搜公式：熵、互信息、分数、矩阵、下标…（拼音也行）"><div class="fxlist"></div>'; q = pop.querySelector(".fxq"); }
+      if (document.activeElement !== q) q.value = st.q || "";
+      return paintList();
+    }
+    pop.innerHTML = '<div class="fxlist"></div>';
+    paintList();
+  };
+  const paintList = () => {
+    const box = pop.querySelector(".fxlist");
+    box.innerHTML = (st.head ? '<div class="fxh">' + esc(st.head) + "</div>" : "") + (st.items.length ? "" : '<div class="fxh">没找到。换个词，比如“熵”“分数”“转置”，或按 Esc 直接写</div>') + st.items.map(([s, d], i) =>
       '<div class="fxi" role="option" data-i="' + i + '" aria-selected="' + (i === st.sel) + '"><span class="fxr">' + tex(st.sub ? "x" + s : s) + '</span><span class="fxd">' + esc(d || "") + "</span><code>" + esc(s.replace(C, "")) + "</code></div>").join("") +
-      '<div class="fxf">↑↓ 选择　Tab / 回车 插入　Esc 关闭</div>';
+      '<div class="fxf">' + (st.search ? "直接在笔记里接着打字也能搜　" : "") + "↑↓ 选择　Tab / 回车 插入　Esc 关闭</div>";
     const cur = pop.querySelector('[aria-selected="true"]'); if (cur) cur.scrollIntoView({ block: "nearest" });
   };
   const pick = () => {
@@ -1344,7 +1391,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     caret = ins.indexOf(C);
     ins = ins.replace(C, "");
     if (caret < 0) caret = st.close ? ins.length : ins.length;
-    const v = ta.value, pos = ta.selectionStart;
+    const v = ta.value, pos = st.pos != null ? st.pos : ta.selectionStart;
     let tail = v.slice(pos);
     if (st.close && tail.startsWith("$")) { ins = ins.slice(0, -1); }
     ta.value = v.slice(0, from) + ins + tail;
@@ -1375,18 +1422,14 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   }, true);
   document.addEventListener("compositionend", (e) => { if (isBox(e.target)) e.target.dispatchEvent(new Event("input", { bubbles: true })); }, true);
   document.addEventListener("keydown", (e) => {
-    if (!st || e.target !== st.ta || e.isComposing) return;
-    const n = st.items.length;
-    if (e.key === "ArrowDown") st.sel = (st.sel + 1) % n;
-    else if (e.key === "ArrowUp") st.sel = (st.sel - 1 + n) % n;
-    else if ((e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.shiftKey) || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); pick(); return; }
-    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); return; }
-    else return;
-    e.preventDefault(); e.stopPropagation(); paint();
+    if (!st || e.target !== st.ta || e.isComposing || e.keyCode === 229) return;
+    if (nav(e)) return;
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); }
   }, true);
   document.addEventListener("keyup", (e) => { if (isBox(e.target) && /^Arrow(Left|Right)$|^Home$|^End$/.test(e.key)) { close(); preview(e.target); } }, true);
   document.addEventListener("click", (e) => { if (isBox(e.target)) preview(e.target); }, true);
-  document.addEventListener("focusout", (e) => { if (st && e.target === st.ta) setTimeout(() => { if (st && document.activeElement !== st.ta) close(); }, 120); }, true);
+  const inPop = (el) => pop && el && pop.contains(el);
+  document.addEventListener("focusout", (e) => { if (st && (e.target === st.ta || inPop(e.target))) setTimeout(() => { if (st && document.activeElement !== st.ta && !inPop(document.activeElement)) close(); }, 150); }, true);
   // Page scrolling closes the list; scrolling the list itself (or the note box) must not.
   addEventListener("scroll", (e) => { if (st && e.target !== st.ta && !(pop && (e.target === pop || pop.contains(e.target)))) close(); }, true);
 })();
@@ -1429,7 +1472,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   const sync = (ta) => {
     if (!window.katex || !ta.isConnected) return;
     let vw = views.get(ta);
-    const show = document.activeElement !== ta && has(ta.value);
+    const ae = document.activeElement, show = ae !== ta && !(ae && ae.closest && ae.closest(".fxpop")) && has(ta.value);
     if (!show) { if (vw) vw.classList.add("fxhide"); ta.classList.remove("fxhide"); return; }
     if (!vw) {
       vw = document.createElement("div"); vw.className = "fxview"; vw.tabIndex = 0; vw.title = "点一下编辑";
