@@ -252,6 +252,17 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   .pages { padding-inline: 10px; }
 }
 @media (prefers-reduced-motion: no-preference) { .card { transition: box-shadow .15s; } }
+.fxpop { position: fixed; z-index: 60; width: min(340px, calc(100vw - 24px)); max-height: 300px; overflow-y: auto; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(20, 24, 40, .18); font: 13px/1.35 var(--ui); padding: 4px; }
+.fxpop .fxi { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 6px 8px; border-radius: 7px; cursor: pointer; }
+.fxpop .fxi[aria-selected="true"] { background: var(--accent-soft); }
+.fxpop .fxr { min-width: 0; overflow: hidden; white-space: nowrap; font-size: 15px; }
+.fxpop .fxd { color: var(--muted); font-size: 12px; text-align: right; }
+.fxpop code { grid-column: 1 / -1; font: 11px var(--mono); color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fxpop .fxh { padding: 4px 8px 2px; color: var(--muted); font-size: 11px; letter-spacing: .04em; }
+.fxpop .fxf { border-top: 1px solid var(--line); margin-top: 4px; padding: 5px 8px 2px; color: var(--muted); font-size: 11px; }
+.fxprev { margin-top: 4px; padding: 6px 10px; border: 1px dashed var(--line); border-radius: 8px; background: var(--card); color: var(--ink); overflow-x: auto; font-size: 15px; min-height: 0; }
+.fxprev .fxerr { color: var(--bad); font: 12px var(--mono); }
+.fxprev .fxlab { color: var(--muted); font-size: 11px; margin-right: 8px; }
 </style>
 </head>
 <body>
@@ -313,6 +324,8 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
 <script>
 (function () {
   const $ = id => document.getElementById(id);
@@ -1173,6 +1186,187 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     if (saved) { try { if (await tryKey(await importRaw(b64.dec(saved)))) return start(); } catch (e) {} ls.set("st-key", null); }
     $("pw").focus();
   })();
+})();
+</script>
+<script>
+/* Formula autocomplete for every note box: type $ to start a formula, \ for commands, _ or ^ for sub/superscripts.
+   ↑↓ choose, Tab/Enter insert, Esc close. ‸ marks where the caret lands after inserting. */
+(() => {
+  const C = "‸";
+  const G = [["alpha","α"],["beta","β"],["gamma","γ"],["delta","δ"],["epsilon","ε"],["varepsilon","ε"],["zeta","ζ"],["eta","η"],["theta","θ"],["vartheta","ϑ"],["kappa","κ"],["lambda","λ"],["mu","μ"],["nu","ν"],["xi","ξ"],["pi","π"],["rho","ρ"],["sigma","σ"],["tau","τ"],["phi","φ"],["varphi","φ"],["chi","χ"],["psi","ψ"],["omega","ω"],["Gamma","Γ"],["Delta","Δ"],["Theta","Θ"],["Lambda","Λ"],["Xi","Ξ"],["Pi","Π"],["Sigma","Σ"],["Phi","Φ"],["Psi","Ψ"],["Omega","Ω"]];
+  const CMDS = G.map(([n, d]) => ["\\" + n, "希腊 " + d]).concat([
+    ["\\frac{" + C + "}{}", "分数"], ["\\sqrt{" + C + "}", "根号"], ["\\sqrt[n]{" + C + "}", "n 次根"],
+    ["\\sum_{i=1}^{" + C + "}", "求和"], ["\\prod_{i=1}^{" + C + "}", "连乘"], ["\\int_{" + C + "}^{}", "积分"], ["\\lim_{n\\to\\infty} " + C, "极限"],
+    ["\\log_2 " + C, "log 以 2 为底"], ["\\log " + C, "log"], ["\\ln " + C, "ln"], ["\\exp\\left(" + C + "\\right)", "exp"],
+    ["\\max_{" + C + "}", "最大"], ["\\min_{" + C + "}", "最小"], ["\\arg\\max_{" + C + "}", "argmax"], ["\\arg\\min_{" + C + "}", "argmin"],
+    ["\\hat{" + C + "}", "估计值 帽子"], ["\\bar{" + C + "}", "均值 横线"], ["\\tilde{" + C + "}", "波浪"], ["\\dot{" + C + "}", "导数 点"], ["\\vec{" + C + "}", "向量 箭头"],
+    ["\\mathbf{" + C + "}", "粗体 向量/矩阵"], ["\\boldsymbol{" + C + "}", "粗体希腊"], ["\\mathbb{" + C + "}", "黑板体 R E"], ["\\mathcal{" + C + "}", "花体 N X"], ["\\mathrm{" + C + "}", "正体"], ["\\text{" + C + "}", "文字"],
+    ["\\mathbb{E}\\left[" + C + "\\right]", "期望"], ["\\operatorname{Var}(" + C + ")", "方差"], ["\\operatorname{Cov}(" + C + ")", "协方差"], ["\\operatorname{tr}(" + C + ")", "迹"], ["\\det(" + C + ")", "行列式"], ["\\operatorname{rank}(" + C + ")", "秩"],
+    ["\\mathbb{R}", "实数集"], ["\\mathbb{C}", "复数集"], ["\\mathbb{N}", "自然数"], ["\\mathbb{R}^{n\\times n}", "n×n 实矩阵"],
+    ["\\left(" + C + "\\right)", "括号 自动大小"], ["\\left[" + C + "\\right]", "方括号"], ["\\left\\{" + C + "\\right\\}", "花括号"], ["\\left|" + C + "\\right|", "绝对值"], ["\\|" + C + "\\|_2", "2 范数"], ["\\|" + C + "\\|_F", "F 范数"], ["\\langle " + C + " \\rangle", "内积"],
+    ["\\begin{bmatrix} " + C + " & \\\\ & \\end{bmatrix}", "矩阵"], ["\\begin{pmatrix} " + C + " \\\\ \\end{pmatrix}", "列向量"], ["\\begin{cases} " + C + " & \\text{if } \\\\ & \\text{else} \\end{cases}", "分段"],
+    ["\\partial", "偏导 ∂"], ["\\frac{\\partial " + C + "}{\\partial }", "偏导数"], ["\\nabla", "梯度 ∇"], ["\\infty", "无穷"],
+    ["\\cdot", "点乘"], ["\\times", "叉乘 ×"], ["\\otimes", "克罗内克积 ⊗"], ["\\oplus", "异或 ⊕"], ["\\circ", "复合 ∘"], ["\\pm", "±"],
+    ["\\le", "≤"], ["\\ge", "≥"], ["\\ne", "≠"], ["\\approx", "≈"], ["\\sim", "服从 ~"], ["\\propto", "正比 ∝"], ["\\equiv", "≡"], ["\\triangleq", "定义为"],
+    ["\\to", "→"], ["\\rightarrow", "→"], ["\\Rightarrow", "⇒ 推出"], ["\\Leftrightarrow", "⇔ 等价"], ["\\mapsto", "↦"],
+    ["\\in", "属于"], ["\\notin", "不属于"], ["\\subset", "子集"], ["\\subseteq", "子集或等"], ["\\cup", "并"], ["\\cap", "交"], ["\\emptyset", "空集"], ["\\forall", "任意"], ["\\exists", "存在"],
+    ["\\ldots", "…"], ["\\cdots", "⋯"], ["\\top", "转置 ⊤"], ["\\mid", "条件 |"], ["\\quad", "空格"],
+  ]);
+  const SUB = ["_{i}", "_{n}", "_{k}", "_{0}", "_{1}", "_{2}", "_{ij}", "_{t}", "_{N}", "_{\\theta}", "_{\\max}", "_{\\min}", "_{\\mathrm{ML}}", "_{\\mathrm{ref}}"];
+  const SUP = ["^{2}", "^{T}", "^{H}", "^{-1}", "^{*}", "^{(k)}", "^{n}", "^{\\top}", "^{-\\frac{1}{2}}", "^{\\prime}"];
+  const SNIP = [
+    ["H(X) = -\\sum_{x} p(x)\\log_2 p(x)", "ITCL 熵"], ["H(X\\mid Y)", "ITCL 条件熵"], ["I(X;Y) = H(X) - H(X\\mid Y)", "ITCL 互信息"], ["D(p\\,\\|\\,q) = \\sum_x p(x)\\log\\frac{p(x)}{q(x)}", "ITCL KL 散度"], ["C = \\max_{p(x)} I(X;Y)", "ITCL 信道容量"],
+    ["\\hat{\\theta}_{\\mathrm{ML}} = \\arg\\max_{\\theta} p(\\mathbf{x};\\theta)", "SASP 最大似然"], ["\\operatorname{Var}(\\hat{\\theta}) \\ge \\frac{1}{I(\\theta)}", "SASP CRB"], ["I(\\theta) = -\\mathbb{E}\\left[\\frac{\\partial^2 \\ln p(\\mathbf{x};\\theta)}{\\partial \\theta^2}\\right]", "SASP Fisher 信息"], ["\\mathbf{x} \\sim \\mathcal{N}(\\boldsymbol{\\mu}, \\mathbf{C})", "SASP 高斯"], ["\\mathbb{E}[\\hat{\\theta}] = \\theta", "SASP 无偏"],
+    ["\\mathbf{A} = \\mathbf{Q}\\mathbf{R}", "MC QR 分解"], ["\\mathbf{A} = \\mathbf{U}\\boldsymbol{\\Sigma}\\mathbf{V}^{H}", "MC SVD"], ["\\mathbf{A}\\mathbf{x} = \\lambda\\mathbf{x}", "MC 特征值"], ["\\kappa(\\mathbf{A}) = \\|\\mathbf{A}\\|\\,\\|\\mathbf{A}^{-1}\\|", "MC 条件数"], ["\\mathbf{x} = (\\mathbf{A}^{T}\\mathbf{A})^{-1}\\mathbf{A}^{T}\\mathbf{b}", "MC 最小二乘"],
+    ["\\mathbf{p}_{b} = \\mathbf{R}\\,\\mathbf{p}_{c} + \\mathbf{t}", "AR 坐标变换"], ["s\\begin{bmatrix} u \\\\ v \\\\ 1 \\end{bmatrix} = \\mathbf{K}\\begin{bmatrix} X \\\\ Y \\\\ Z \\end{bmatrix}", "AR 针孔投影"], ["\\mathbf{K} = \\begin{bmatrix} f_x & 0 & c_x \\\\ 0 & f_y & c_y \\\\ 0 & 0 & 1 \\end{bmatrix}", "AR 内参"], ["\\mathbf{T} = \\begin{bmatrix} \\mathbf{R} & \\mathbf{t} \\\\ \\mathbf{0}^{T} & 1 \\end{bmatrix}", "AR 齐次变换"], ["\\mathbf{R}(\\theta) = \\begin{bmatrix} \\cos\\theta & -\\sin\\theta \\\\ \\sin\\theta & \\cos\\theta \\end{bmatrix}", "AR 旋转矩阵"],
+    ["\\frac{" + C + "}{}", "分数"], ["\\sum_{i=1}^{N} " + C, "求和"], ["\\mathbf{" + C + "}", "粗体"],
+  ];
+  const isBox = (t) => t && t.tagName === "TEXTAREA";
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  const tex = (s, display, soft) => {
+    const src = s.replace(C, "").replace(/\{\}/g, "{\\square}");
+    if (!window.katex) return esc(src);
+    try { return katex.renderToString(src, { throwOnError: true, displayMode: !!display, strict: false }); }
+    catch (e) { if (soft) return '<span class="fxlab">写完这一项后显示</span>'; return '<span class="fxerr">' + esc(String(e.message || e).replace(/^KaTeX parse error: /, "")) + "</span>"; }
+  };
+  let pop = null, st = null, quiet = false;
+
+  // All formulas the user already wrote (this box + saved notes), newest first: offered first after $.
+  const mine = (ta) => {
+    const seen = new Set(), out = [];
+    const add = (txt) => { (txt.match(/\$([^$\n]{2,120})\$/g) || []).forEach((m) => { const f = m.slice(1, -1).trim(); if (f && !seen.has(f)) { seen.add(f); out.push([f, "我写过的"]); } }); };
+    add(ta.value); out.reverse();
+    try { for (let i = 0; i < localStorage.length && out.length < 40; i++) { const k = localStorage.key(i); if (/^st-nl-|^st-q/.test(k)) add(String(localStorage.getItem(k) || "")); } } catch (e) {}
+    return out.slice(0, 12);
+  };
+  const usedSubs = (ta, ch) => {
+    const re = ch === "_" ? /_\{([^{}]{1,12})\}/g : /\^\{([^{}]{1,12})\}/g, out = [];
+    let m; while ((m = re.exec(ta.value))) { const s = ch + "{" + m[1] + "}"; if (!out.includes(s)) out.push(s); }
+    return out.reverse();
+  };
+  // Is the caret inside $...$? Returns [start, end) of the formula body or null.
+  const formulaAt = (v, pos) => {
+    let open = -1;
+    for (let i = 0; i < v.length; i++) {
+      if (v[i] === "\\") { i++; continue; }
+      if (v[i] === "$") {
+        if (v[i + 1] === "$") { i++; }
+        if (open < 0) open = i + 1; else { if (pos >= open && pos <= i) return [open, i, true]; open = -1; }
+      }
+      if (v[i] === "\n" && open >= 0 && v[i - 1] !== "\\") { /* formulas may span lines */ }
+    }
+    return open >= 0 && pos >= open ? [open, v.length, false] : null;
+  };
+
+  const context = (ta) => {
+    const v = ta.value, pos = ta.selectionStart;
+    if (pos !== ta.selectionEnd) return null;
+    const f = formulaAt(v, pos), before = v.slice(0, pos);
+    let m;
+    if ((m = before.match(/\\([A-Za-z]*)$/)) && !/\\\\[A-Za-z]*$/.test(before)) {
+      const q = m[1].toLowerCase();
+      const list = CMDS.filter(([c, d]) => c.slice(1).toLowerCase().startsWith(q))
+        .concat(q.length > 1 ? CMDS.filter(([c, d]) => !c.slice(1).toLowerCase().startsWith(q) && (c.toLowerCase().includes(q) || d.toLowerCase().includes(q))) : []);
+      if (list.length === 1 && list[0][0] === "\\" + m[1]) return null;
+      return list.length ? { from: pos - m[0].length, head: f ? "命令" : "命令（插入时自动加上 $…$）", items: list.slice(0, 30), wrap: !f } : null;
+    }
+    if (f && /[_^]$/.test(before) && !/\\[_^]$/.test(before)) {
+      const ch = before.slice(-1), base = ch === "_" ? SUB : SUP;
+      const used = usedSubs(ta, ch).filter((s) => !base.includes(s));
+      return { from: pos - 1, head: ch === "_" ? "下标" : "上标", items: used.concat(base).map((s) => [s, used.includes(s) ? "我用过的" : ""]), sub: true };
+    }
+    if (f && !f[2] && (m = before.slice(f[0] - 1).match(/^\$([^\s$\\]{0,12})$/))) {
+      const q = m[1].toLowerCase(), all = mine(ta).concat(SNIP);
+      const list = q ? all.filter(([s, d]) => s.toLowerCase().startsWith(q) || d.toLowerCase().includes(q)) : all;
+      return list.length ? { from: f[0], head: q ? "公式" : "常用公式（继续输入字母可筛选，如 H、SASP、MC）", items: list.slice(0, 30), close: true } : null;
+    }
+    return null;
+  };
+
+  const caretXY = (ta) => {
+    const cs = getComputedStyle(ta), d = document.createElement("div");
+    for (const p of ["boxSizing", "width", "fontFamily", "fontSize", "fontWeight", "lineHeight", "letterSpacing", "paddingTop", "paddingLeft", "paddingRight", "borderTopWidth", "borderLeftWidth", "tabSize"]) d.style[p] = cs[p];
+    Object.assign(d.style, { position: "absolute", visibility: "hidden", whiteSpace: "pre-wrap", wordWrap: "break-word", top: "0", left: "-9999px" });
+    d.textContent = ta.value.slice(0, ta.selectionStart);
+    const s = document.createElement("span"); s.textContent = "​"; d.appendChild(s);
+    document.body.appendChild(d);
+    const r = ta.getBoundingClientRect(), x = r.left + s.offsetLeft - ta.scrollLeft, y = r.top + s.offsetTop - ta.scrollTop, lh = parseFloat(cs.lineHeight) || 20;
+    d.remove();
+    return { x, y, lh };
+  };
+
+  const close = () => { if (pop) pop.hidden = true; st = null; };
+  const show = (ta, ctx) => {
+    if (!pop) {
+      pop = document.createElement("div"); pop.className = "fxpop"; pop.setAttribute("role", "listbox"); document.body.appendChild(pop);
+      pop.addEventListener("mousedown", (e) => { e.preventDefault(); const it = e.target.closest(".fxi"); if (it && st) { st.sel = +it.dataset.i; pick(); } });
+    }
+    st = Object.assign({ ta, sel: 0 }, ctx);
+    paint();
+    const p = caretXY(ta), w = pop.offsetWidth || 340, h = Math.min(300, pop.scrollHeight);
+    let x = Math.max(8, Math.min(p.x, innerWidth - w - 8)), y = p.y + p.lh + 4;
+    if (y + h > innerHeight - 8) y = Math.max(8, p.y - h - 4);
+    pop.style.left = x + "px"; pop.style.top = y + "px";
+  };
+  const paint = () => {
+    pop.hidden = false;
+    pop.innerHTML = '<div class="fxh">' + esc(st.head) + "</div>" + st.items.map(([s, d], i) =>
+      '<div class="fxi" role="option" data-i="' + i + '" aria-selected="' + (i === st.sel) + '"><span class="fxr">' + tex(st.sub ? "x" + s : s) + '</span><span class="fxd">' + esc(d || "") + "</span><code>" + esc(s.replace(C, "")) + "</code></div>").join("") +
+      '<div class="fxf">↑↓ 选择　Tab / 回车 插入　Esc 关闭</div>';
+    const cur = pop.querySelector('[aria-selected="true"]'); if (cur) cur.scrollIntoView({ block: "nearest" });
+  };
+  const pick = () => {
+    const { ta, from } = st, item = st.items[st.sel][0];
+    let ins = item, caret;
+    if (st.close) { ins = item + "$"; }
+    if (st.wrap) { ins = "$" + (item.includes(C) ? item : item + C) + "$"; }
+    caret = ins.indexOf(C);
+    ins = ins.replace(C, "");
+    if (caret < 0) caret = st.close ? ins.length : ins.length;
+    const v = ta.value, pos = ta.selectionStart;
+    let tail = v.slice(pos);
+    if (st.close && tail.startsWith("$")) { ins = ins.slice(0, -1); }
+    ta.value = v.slice(0, from) + ins + tail;
+    const at = from + Math.min(caret, ins.length);
+    ta.setSelectionRange(at, at);
+    close();
+    quiet = true; ta.dispatchEvent(new Event("input", { bubbles: true })); quiet = false;
+    preview(ta);
+    ta.focus();
+  };
+
+  const prevFor = new WeakMap();
+  const preview = (ta) => {
+    let pv = prevFor.get(ta);
+    const f = formulaAt(ta.value, ta.selectionStart);
+    if (!f || !ta.value.slice(f[0], f[1]).trim()) { if (pv) pv.hidden = true; return; }
+    if (!pv) { pv = document.createElement("div"); pv.className = "fxprev"; ta.insertAdjacentElement("afterend", pv); prevFor.set(ta, pv); }
+    pv.hidden = false;
+    pv.innerHTML = '<span class="fxlab">预览' + (f[2] ? "" : "（还没写结尾的 $）") + "</span>" + tex(ta.value.slice(f[0], f[1]), false, true);
+  };
+
+  document.addEventListener("input", (e) => {
+    const ta = e.target; if (!isBox(ta) || quiet) return;
+    if (e.isComposing) return;
+    const ctx = context(ta);
+    if (ctx) show(ta, ctx); else close();
+    preview(ta);
+  }, true);
+  document.addEventListener("compositionend", (e) => { if (isBox(e.target)) e.target.dispatchEvent(new Event("input", { bubbles: true })); }, true);
+  document.addEventListener("keydown", (e) => {
+    if (!st || e.target !== st.ta || e.isComposing) return;
+    const n = st.items.length;
+    if (e.key === "ArrowDown") st.sel = (st.sel + 1) % n;
+    else if (e.key === "ArrowUp") st.sel = (st.sel - 1 + n) % n;
+    else if ((e.key === "Enter" && !e.ctrlKey && !e.metaKey && !e.shiftKey) || e.key === "Tab") { e.preventDefault(); e.stopPropagation(); pick(); return; }
+    else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(); return; }
+    else return;
+    e.preventDefault(); e.stopPropagation(); paint();
+  }, true);
+  document.addEventListener("keyup", (e) => { if (isBox(e.target) && /^Arrow(Left|Right)$|^Home$|^End$/.test(e.key)) { close(); preview(e.target); } }, true);
+  document.addEventListener("click", (e) => { if (isBox(e.target)) preview(e.target); }, true);
+  document.addEventListener("focusout", (e) => { if (st && e.target === st.ta) setTimeout(() => { if (st && document.activeElement !== st.ta) close(); }, 120); }, true);
+  addEventListener("scroll", (e) => { if (st && e.target !== st.ta) close(); }, true);
 })();
 </script>
 </body>
