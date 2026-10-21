@@ -252,7 +252,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   .pages { padding-inline: 10px; }
 }
 @media (prefers-reduced-motion: no-preference) { .card { transition: box-shadow .15s; } }
-.fxpop { position: fixed; z-index: 60; width: min(340px, calc(100vw - 24px)); max-height: 300px; overflow-y: auto; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(20, 24, 40, .18); font: 13px/1.35 var(--ui); padding: 4px; }
+.fxpop { position: fixed; z-index: 60; width: min(340px, calc(100vw - 24px)); max-height: 300px; overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; background: var(--card); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 24px rgba(20, 24, 40, .18); font: 13px/1.35 var(--ui); padding: 4px; }
 .fxpop .fxi { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 6px 8px; border-radius: 7px; cursor: pointer; }
 .fxpop .fxi[aria-selected="true"] { background: var(--accent-soft); }
 .fxpop .fxr { min-width: 0; overflow: hidden; white-space: nowrap; font-size: 15px; }
@@ -310,7 +310,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     <div class="log" id="asklog"><p class="muted">在课件上点「问」，或者先选中一段文字再点「问 Claude」，会带着这一页的翻译和带读一起打开 claude.ai，用你的 Claude 订阅回答，不需要 API key。</p></div>
     <div class="foot">
       <div class="quote" id="askquote" hidden></div>
-      <textarea id="askq" placeholder="想问这一页的什么？（Ctrl+Enter 发送）"></textarea>
+      <textarea id="askq" placeholder="想问这一页的什么？（回车发送，Shift+回车换行）"></textarea>
       <div class="row"><span class="muted" id="askst"></span><button class="tool" id="askcopy" type="button">复制问题</button><button class="tool primary" id="asksend" type="button">在 Claude 里问 ↗</button></div>
       <a class="tool" id="askgo" href="https://claude.ai/new" target="_blank" rel="noopener" hidden>打开 Claude</a>
       <details id="akbox"><summary id="aksum">可选：用 API key 直接在这里回答</summary>
@@ -992,7 +992,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   $("askx").onclick = () => { $("ask").hidden = true; $("askfab").hidden = false; };
   $("asknew").onclick = () => { ASK.conv = []; $("asklog").innerHTML = '<p class="muted">新对话。问题会带上当前这一页的课件、翻译和带读。</p>'; };
   $("asksend").onclick = sendAsk;
-  $("askq").addEventListener("keydown", e => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendAsk(); } });
+  $("askq").addEventListener("keydown", e => { if (e.key === "Enter" && !e.shiftKey && !e.isComposing && e.keyCode !== 229) { e.preventDefault(); sendAsk(); } });
   $("askcopy").onclick = async () => { const q = $("askq").value.trim(); if (!q) return askStatus("先写问题"); copyText(await buildUserText(q)); };
   $("aksave").onclick = () => { const v = $("akey").value.trim(); lss("st-ap", $("akprov").value); if (v) lss(PROV[provider()].ls, v); $("akey").value = ""; ASK.client = null; $("akbox").open = false; syncAskMode(); askStatus(akey() ? "已保存" : ""); };
   $("akclear").onclick = () => { lss(PROV[provider()].ls, ""); ASK.client = null; syncAskMode(); askStatus("已清除"); };
@@ -1366,7 +1366,30 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   document.addEventListener("keyup", (e) => { if (isBox(e.target) && /^Arrow(Left|Right)$|^Home$|^End$/.test(e.key)) { close(); preview(e.target); } }, true);
   document.addEventListener("click", (e) => { if (isBox(e.target)) preview(e.target); }, true);
   document.addEventListener("focusout", (e) => { if (st && e.target === st.ta) setTimeout(() => { if (st && document.activeElement !== st.ta) close(); }, 120); }, true);
-  addEventListener("scroll", (e) => { if (st && e.target !== st.ta) close(); }, true);
+  // Page scrolling closes the list; scrolling the list itself (or the note box) must not.
+  addEventListener("scroll", (e) => { if (st && e.target !== st.ta && !(pop && (e.target === pop || pop.contains(e.target)))) close(); }, true);
+})();
+</script>
+<script>
+/* Remember the height a note box was dragged to (per kind of box), so refreshes and re-renders keep it. */
+(() => {
+  const kind = (ta) => ta.id === "qta" || ta.id === "mqta" || ta.id === "askq" ? ta.id : ta.closest(".segx") ? "segx" : ta.classList.contains("notes") ? "notes" : ta.closest(".pnote") ? "pnote" : ta.closest(".lec") ? "lec" : null;
+  const K = "st-h-";
+  const get = (k) => { try { return localStorage.getItem(K + k); } catch (e) { return null; } };
+  const put = (k, v) => { try { localStorage.setItem(K + k, v); } catch (e) {} };
+  const apply = (ta) => { const k = kind(ta); if (!k) return; const h = get(k); if (h && !ta.dataset.hset) { ta.style.height = h; ta.style.maxHeight = "none"; ta.dataset.hset = "1"; } };
+  let down = null;
+  document.addEventListener("pointerdown", (e) => { const ta = e.target; if (ta && ta.tagName === "TEXTAREA" && kind(ta)) down = { ta, h: ta.offsetHeight }; }, true);
+  document.addEventListener("pointerup", () => {
+    if (!down) return; const { ta, h } = down; down = null;
+    if (Math.abs(ta.offsetHeight - h) < 4) return;
+    const v = ta.offsetHeight + "px", k = kind(ta); put(k, v);
+    document.querySelectorAll("textarea").forEach((t) => { if (t !== ta && kind(t) === k) { t.style.height = v; t.style.maxHeight = "none"; } });
+    ta.style.maxHeight = "none";
+  }, true);
+  const scan = (root) => { if (root.tagName === "TEXTAREA") apply(root); else if (root.querySelectorAll) root.querySelectorAll("textarea").forEach(apply); };
+  scan(document.body);
+  new MutationObserver((ms) => ms.forEach((m) => m.addedNodes.forEach((n) => n.nodeType === 1 && scan(n)))).observe(document.body, { childList: true, subtree: true });
 })();
 </script>
 </body>
