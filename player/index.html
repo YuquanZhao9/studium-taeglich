@@ -293,7 +293,7 @@ a { color: var(--accent); }
   // ---------- recordings served from the PC (Tailscale) ----------
   // items with `path` (relative to F:\Stuttgart uni\Vorlesungen) play from the PC address saved on this device
   const ok = it => !!(it.url || it.path);
-  const pcBase = () => (ls.get("pl-pc") || "").replace(/\/+$/, "");
+  const pcBase = () => (ls.get("pl-pc") || S.lib.pc || "").replace(/\/+$/, "");
   const srcOf = it => it.url || pcBase() + "/" + it.path.split("/").map(encodeURIComponent).join("/");
   function askPc() {
     const v0 = prompt("电脑地址（Tailscale 里电脑的 https 地址，例如 https://tyr10n.xxxx.ts.net）", pcBase() || "https://");
@@ -543,6 +543,7 @@ a { color: var(--accent); }
   paintRate(); paintPc(); $("bpc").onclick = () => { if (askPc()) renderList(); };
   async function start() {
     try { S.lib = await loadLib(); } catch (e) { S.lib = { courses: [] }; toast("录播列表读取失败（" + e.message + "），还可以打开本地视频。"); }
+    paintPc();
     const cid = ls.get("pl-course"), last = ls.get("pl-last");
     S.course = S.lib.courses.find(c => c.id === cid) || S.lib.courses.find(c => c.items.some(ok)) || S.lib.courses[0] || null;
     renderChips(); renderList();
