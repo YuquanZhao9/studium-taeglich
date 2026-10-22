@@ -159,6 +159,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 .lec, .lec .md { min-width: 0; overflow-wrap: anywhere; }
 .md .f.fk { font-family: var(--read); font-size: 15px; white-space: normal; }
 .md .f.fk .katex { font-size: 1.08em; }
+.md .katex-display { overflow-x: auto; overflow-y: hidden; max-width: 100%; padding-bottom: 2px; }
 .lec .md .f { white-space: pre-wrap; overflow-x: auto; max-width: 100%; }
 .lec { scroll-margin-top: 110px; scroll-margin-bottom: 40px; border-left: 3px solid transparent; padding: 8px 10px 8px 12px; margin-left: -12px; border-radius: 0 8px 8px 0; transition: background .15s; }
 .lec[data-from] { cursor: pointer; }
@@ -273,10 +274,21 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 .fxprev { margin-top: 4px; padding: 6px 10px; border: 1px dashed var(--line); border-radius: 8px; background: var(--card); color: var(--ink); overflow-x: auto; font-size: 15px; min-height: 0; }
 .fxprev .fxerr { color: var(--bad); font: 12px var(--mono); }
 .fxprev .fxlab { color: var(--muted); font-size: 11px; margin-right: 8px; }
-.fxview { white-space: pre-wrap; overflow-wrap: anywhere; overflow-y: auto; cursor: text; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); padding: 8px 10px; }
+.fxview { white-space: normal; overflow-wrap: anywhere; overflow-y: auto; cursor: text; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); padding: 8px 10px; }
 .fxview .katex-display { margin: 6px 0; overflow-x: auto; overflow-y: hidden; }
 .fxview:hover { border-color: var(--accent); }
 .fxhide { display: none !important; }
+.fxview p { margin: 0 0 6px; } .fxview p:last-child { margin-bottom: 0; }
+.fxview h3, .fxview h4, .fxview h5 { font-family: var(--ui); margin: 8px 0 4px; color: var(--cc, var(--accent)); line-height: 1.35; }
+.fxview h3 { font-size: 1.15em; } .fxview h4 { font-size: 1.05em; } .fxview h5 { font-size: 1em; }
+.fxview h3:first-child, .fxview h4:first-child, .fxview h5:first-child { margin-top: 0; }
+.fxview ul, .fxview ol { margin: 2px 0 6px; padding-left: 22px; }
+.fxview li { margin: 1px 0; }
+.fxview blockquote { margin: 4px 0; padding: 2px 10px; border-left: 3px solid var(--cc, var(--accent)); color: var(--ink2, var(--ink)); }
+.fxview code { font-family: var(--mono); font-size: 0.9em; background: var(--line); padding: 0 4px; border-radius: 4px; }
+.fxview pre { font-family: var(--mono); font-size: 0.88em; background: var(--line); padding: 6px 8px; border-radius: 6px; overflow-x: auto; white-space: pre; margin: 4px 0; }
+.fxview hr { border: 0; border-top: 1px solid var(--line); margin: 8px 0; }
+.fxview a { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -605,7 +617,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
       let after = box; while (after.nextElementSibling && after.nextElementSibling.classList.contains("ptrans") || after.nextElementSibling && after.nextElementSibling.classList.contains("pqa")) after = after.nextElementSibling;
       const el = document.createElement("div"); el.className = "pqa"; el.dataset.id = x.id;
       el.innerHTML = '<div class="pn-h"><span>问 Claude · 第 ' + x.page + ' 页</span><button class="tool" type="button">删除</button></div><div class="q">问：' + esc(x.q) +
-        (x.quote ? '<div class="quote">引用：' + esc(x.quote) + "</div>" : "") + '</div><div class="md">' + renderMd(x.a) + "</div>";
+        (x.quote ? '<div class="quote">引用：' + esc(x.quote) + "</div>" : "") + '</div><div class="md">' + renderMd(window.__pasteFix ? window.__pasteFix.rejoin(x.a) : x.a) + "</div>";
       el.querySelector("button").onclick = () => { if (el.dataset.sure) delQa(x.id); else { el.dataset.sure = "1"; el.querySelector("button").textContent = "确定删除？"; } };
       after.after(el);
     });
@@ -829,7 +841,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     w.innerHTML = '<textarea placeholder="在 Claude 那边点回答下面的「复制」，回来粘贴到这里"></textarea><div class="row"><span class="muted"></span><button class="tool primary" type="button">保存到第 ' + page + ' 页</button></div>';
     const ta = w.querySelector("textarea"), st = w.querySelector(".muted");
     w.querySelector("button").onclick = async () => {
-      const a = ta.value.trim(); if (!a) { st.textContent = "先粘贴回答"; return; }
+      const a = (window.__pasteFix ? window.__pasteFix.rejoin(ta.value) : ta.value).trim(); if (!a) { st.textContent = "先粘贴回答"; return; }
       const ok = await addQa({ page, q, quote, a });
       w.replaceWith(Object.assign(document.createElement("div"), { className: "md", innerHTML: renderMd(a) + '<p class="muted">' + (ok ? "已保存到第 " + page + " 页下面（已同步）。" : "已保存到第 " + page + " 页下面（只存在这台设备的浏览器里）。") + "</p>" }));
       jumpTo(page, null, null);
@@ -891,7 +903,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   const URL_MAX = 7000;
   async function claudeTexts(q) {
     const r = await pagePieces(ASK.page);
-    const intro = "我在看斯图加特大学硕士课程的课件，请当助教，用中文回答：先直接回答，再讲清道理，需要时举个小算例；公式用 Unicode，不要用 LaTeX。";
+    const intro = "我在看斯图加特大学硕士课程的课件，请当助教，用中文回答：先直接回答，再讲清道理，需要时举个小算例；公式写成 LaTeX 放在 $…$ 里（不要放进代码块）。";
     const tail = (ASK.quote ? "\n\n【我选中的这段】\n" + ASK.quote : "") + "\n\n【我的问题】\n" + q;
     const full = intro + "\n\n" + [r.head, r.text, r.tr && "【这一页的中文翻译】\n" + r.tr, r.ch && "【这一页的老师带读】\n" + r.ch].filter(Boolean).join("\n\n") + tail;
     const make = (tr, ch) => intro + "\n\n" + [r.head, tr && "【这一页的中文翻译】\n" + tr, ch && "【这一页的老师带读】\n" + ch].filter(Boolean).join("\n\n") + tail;
@@ -1581,17 +1593,93 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 })();
 </script>
 <script>
+/* Pasting an answer copied from claude.ai / DeepSeek: rendered formulas come over as one character per line.
+   Rebuild Markdown from the copied HTML (formulas from their TeX annotation), else re-join the broken lines. */
+(() => {
+  const texOf = (el) => { const a = el.querySelector('annotation[encoding="application/x-tex"]'); return a ? a.textContent.trim() : (el.getAttribute && el.getAttribute("alttext")) || el.textContent.trim(); };
+  const walk = (node, ctx) => {
+    if (node.nodeType === 3) return ctx.pre ? node.nodeValue : node.nodeValue.replace(/\s+/g, " ");
+    if (node.nodeType !== 1) return "";
+    const el = node, tag = el.tagName.toLowerCase(), cls = el.classList || { contains: () => false };
+    if (tag === "style" || tag === "script" || tag === "button" || tag === "svg") return "";
+    if (cls.contains("katex-display") || (tag === "math" && el.getAttribute("display") === "block")) return "\n\n$$" + texOf(el) + "$$\n\n";
+    if (cls.contains("katex") || tag === "math") return "$" + texOf(el) + "$";
+    if (cls.contains("katex-html")) return "";
+    const kids = (c) => Array.from(el.childNodes).map((n) => walk(n, c || ctx)).join("");
+    if (tag === "br") return "\n";
+    if (tag === "pre") return "\n\n```\n" + el.textContent.replace(/\n$/, "") + "\n```\n\n";
+    if (tag === "code") return "`" + el.textContent + "`";
+    if (/^h[1-6]$/.test(tag)) return "\n\n" + "#".repeat(+tag[1]) + " " + kids().trim() + "\n\n";
+    if (tag === "strong" || tag === "b") { const t = kids(); return t.trim() ? "**" + t.trim() + "**" : t; }
+    if (tag === "li") { const ol = el.parentElement && el.parentElement.tagName === "OL"; const depth = Math.max(0, ctx.depth - 1); return "\n" + "  ".repeat(depth) + (ol ? (Array.from(el.parentElement.children).indexOf(el) + 1) + ". " : "- ") + kids().trim(); }
+    if (tag === "ul" || tag === "ol") return "\n" + kids({ ...ctx, depth: ctx.depth + 1 }) + "\n";
+    if (tag === "blockquote") return "\n\n" + kids().trim().split("\n").map((l) => "> " + l).join("\n") + "\n\n";
+    if (tag === "hr") return "\n\n---\n\n";
+    if (tag === "tr") return "\n" + Array.from(el.children).map((c) => walk(c, ctx).trim()).join(" | ");
+    if (tag === "p" || tag === "div" || tag === "section" || tag === "table") return "\n\n" + kids() + "\n\n";
+    return kids();
+  };
+  const fromHtml = (html) => {
+    const doc = new DOMParser().parseFromString(html, "text/html");
+    return walk(doc.body, { depth: 0, pre: false }).replace(/[ \t]+\n/g, "\n").replace(/\n[ \t]+(?![-\d])/g, "\n").replace(/\n{3,}/g, "\n\n").trim();
+  };
+  // plain text only: runs of 1–3 character lines (a formula split up) are joined back onto one line
+  const rejoin = (t) => {
+    const L = t.split("\n"); const short = L.filter((l) => l.trim() && l.trim().length <= 3).length;
+    if (L.length < 6 || short / L.length < 0.3) return t;
+    const out = []; let run = [];
+    const flush = () => { if (run.length) { const prev = out.length ? out.pop() : ""; out.push(prev.replace(/\s+$/, "") + run.join("")); run = []; } };
+    for (const l of L) { const x = l.trim(); if (x && x.length <= 3) run.push(x); else { if (run.length) { flush(); if (x) { out[out.length - 1] += x; continue; } } out.push(l); } }
+    flush(); return out.join("\n");
+  };
+  document.addEventListener("paste", (e) => {
+    const ta = e.target; if (!ta || ta.tagName !== "TEXTAREA" || !e.clipboardData) return;
+    const html = e.clipboardData.getData("text/html"), plain = e.clipboardData.getData("text/plain");
+    let t = null;
+    if (html && /katex|<math|<li|<h[1-6]|<strong|<code|<pre/i.test(html)) { try { t = fromHtml(html); } catch (err) { t = null; } }
+    if (!t && plain) { const r = rejoin(plain); if (r !== plain) t = r; }
+    if (!t) return;
+    e.preventDefault();
+    ta.setRangeText(t, ta.selectionStart, ta.selectionEnd, "end");
+    ta.dispatchEvent(new Event("input", { bubbles: true }));
+  }, true);
+  window.__pasteFix = { fromHtml, rejoin };
+})();
+</script>
+<script>
 /* Notes show rendered formulas whenever the box is not being edited; click (or tap) the box to edit the source. */
 (() => {
   const kind = (ta) => ta.id === "qta" || ta.id === "mqta" || ta.closest(".segx") || ta.classList.contains("notes") || ta.closest(".pnote");
   const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
   const k = (src, d) => { try { return katex.renderToString(src, { displayMode: d, throwOnError: true, strict: false }); } catch (e) { return esc(d ? "$$" + src + "$$" : "$" + src + "$"); } };
+  // Markdown (headings, lists, quotes, bold/italic, code, links, rules) plus $…$ / $$…$$ formulas.
   const render = (v) => {
-    let out = "", i = 0; const re = /\$\$([\s\S]+?)\$\$|\$((?:\\.|[^$\\])+?)\$/g; let m;
-    while ((m = re.exec(v))) { out += esc(v.slice(i, m.index)) + (m[1] != null ? k(m[1], true) : k(m[2], false)); i = re.lastIndex; }
-    return out + esc(v.slice(i));
+    const F = []; const keep = (h) => "\u0001" + (F.push(h) - 1) + "\u0002";
+    v = v.replace(/```[^\n]*\n([\s\S]*?)```/g, (_, c) => keep("<pre>" + esc(c.replace(/\n$/, "")) + "</pre>"));
+    v = v.replace(/\$\$([\s\S]+?)\$\$/g, (_, t) => keep(k(t, true)));
+    v = v.replace(/\$((?:\\.|[^$\\\n])+?)\$/g, (_, t) => keep(k(t, false)));
+    v = v.replace(/`([^`\n]+)`/g, (_, c) => keep("<code>" + esc(c) + "</code>"));
+    const inl = (t) => esc(t)
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+      .replace(/\*\*([^*]+)\*\*/g, "<b>$1</b>").replace(/__([^_]+)__/g, "<b>$1</b>")
+      .replace(/(^|[^*])\*([^*\s][^*]*)\*/g, "$1<i>$2</i>").replace(/~~([^~]+)~~/g, "<s>$1</s>");
+    const out = []; let para = [], list = null;
+    const flushP = () => { if (para.length) { out.push("<p>" + para.map(inl).join("<br>") + "</p>"); para = []; } };
+    const flushL = () => { if (list) { out.push("<" + list.t + ">" + list.items.map((x) => "<li>" + inl(x) + "</li>").join("") + "</" + list.t + ">"); list = null; } };
+    for (const line of v.split("\n")) {
+      let m;
+      if (!line.trim()) { flushP(); flushL(); continue; }
+      if ((m = line.match(/^\s*(#{1,6})\s+(.*)$/))) { flushP(); flushL(); const n = Math.min(5, m[1].length + 2); out.push("<h" + n + ">" + inl(m[2]) + "</h" + n + ">"); continue; }
+      if (/^\s*(-{3,}|\*{3,}|_{3,})\s*$/.test(line)) { flushP(); flushL(); out.push("<hr>"); continue; }
+      if ((m = line.match(/^\s*>\s?(.*)$/))) { flushP(); flushL(); out.push("<blockquote>" + inl(m[1]) + "</blockquote>"); continue; }
+      if ((m = line.match(/^\s*([-*+•]|\d+[.)])\s+(.*)$/))) { flushP(); const t = /\d/.test(m[1]) ? "ol" : "ul"; if (list && list.t !== t) flushL(); if (!list) list = { t, items: [] }; list.items.push(m[2]); continue; }
+      if (list && /^\s{2,}\S/.test(line)) { list.items[list.items.length - 1] += " " + line.trim(); continue; }
+      flushL(); para.push(line);
+    }
+    flushP(); flushL();
+    return out.join("").replace(/\u0001(\d+)\u0002/g, (_, i) => F[+i]);
   };
-  const has = (v) => /\$[^$]+\$/.test(v);
+  const has = (v) => /\S/.test(v);
   const views = new WeakMap(), all = new Set();
   const sync = (ta) => {
     if (!window.katex || !ta.isConnected) return;
