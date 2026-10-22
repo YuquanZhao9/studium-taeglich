@@ -499,7 +499,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
       // "今日没懂整合": written after the day ends from the parts rated 没懂/有点懂 and the questions asked
       const rv = document.createElement("article"); rv.className = "card review";
       rv.innerHTML = '<div class="bhead"><h3>今日没懂整合</h3><span class="tag">点标题里的页码跳到那页课件</span></div><div class="md">' + renderMd(d.review) + "</div>";
-      rv.querySelectorAll("h4").forEach(h => { const m = h.textContent.match(/第\s*(\d+)\s*页/); if (!m) return; h.dataset.page = m[1]; h.tabIndex = 0; h.onclick = () => jumpTo(+m[1], null, null); h.onkeydown = e => { if (e.key === "Enter") h.onclick(); }; });
+      rv.querySelectorAll("h4").forEach(h => { const m = h.textContent.match(/第\s*(\d+)(?:\s*[–-]\s*\d+)?\s*页/); if (!m) return; h.dataset.page = m[1]; h.tabIndex = 0; h.onclick = () => jumpTo(+m[1], null, null); h.onkeydown = e => { if (e.key === "Enter") h.onclick(); }; });
       cards.appendChild(rv);
     }
     if (d.message) cards.insertAdjacentHTML("beforeend", '<div class="empty">' + esc(d.message) + "</div>");
