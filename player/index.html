@@ -119,6 +119,8 @@ a { color: var(--accent); }
 .marks .nt.empty { color: var(--muted); font-size: 13px; }
 .marks .x { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 4px 6px; border-radius: 6px; }
 .marks .x:hover { color: var(--ink); background: var(--line); }
+.marks .syncst { padding: 4px 14px 0; font-size: 12px; color: var(--muted); }
+.marks .syncst:empty { display: none; }
 .marks .none { padding: 10px 14px; color: var(--muted); font-size: 13px; }
 .prog .tip { position: absolute; bottom: 20px; transform: translateX(-50%); background: rgba(20,20,24,.85); border-radius: 4px; padding: 2px 6px; font: 12px var(--mono); pointer-events: none; white-space: nowrap; }
 .ctr { display: flex; align-items: center; gap: 4px; height: 38px; }
@@ -223,6 +225,7 @@ a { color: var(--accent); }
       </div>
       <div class="marks" id="marks" hidden>
         <div class="mh"><b>我的标记</b><span>点时间跳过去，点文字改备注</span></div>
+        <div class="syncst" id="syncst"></div>
         <ul id="mlist"></ul>
       </div>
       <div class="keys">
@@ -363,11 +366,12 @@ a { color: var(--accent); }
     const k = curKey(); if (!k || !v.duration) return;
     const end = v.currentTime > v.duration - 15 || v.ended;
     ls.set(posKey(k), JSON.stringify({ t: v.currentTime, d: v.duration, end, at: Date.now() }));
+    markDirty("pos", k);
   }
   v.addEventListener("timeupdate", () => { const n = Date.now(); if (n - lastSave > 4000) { lastSave = n; saveNow(); } });
-  v.addEventListener("pause", () => { saveNow(); renderList(); });
-  addEventListener("pagehide", saveNow);
-  document.addEventListener("visibilitychange", () => { if (document.hidden) saveNow(); });
+  v.addEventListener("pause", () => { saveNow(); renderList(); push(); });
+  addEventListener("pagehide", () => { saveNow(); push(true); });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) { saveNow(); push(true); } else pull().then(() => { renderList(); renderMarks(); }); });
   v.addEventListener("ended", () => { saveNow(); renderList(); if ($("auto").checked) next(true); });
   function next(auto) {
     if (!S.course || !S.item) return;
@@ -420,8 +424,47 @@ a { color: var(--accent); }
 
   // ---------- marks (bookmarks), per video, stored on this device ----------
   const mkKey = () => curKey() && "pl-marks-" + curKey();
-  const getMarks = () => mkKey() ? lj(mkKey(), []) : [];
-  const putMarks = a => { a.sort((x, y) => x.t - y.t); ls.set(mkKey(), a.length ? JSON.stringify(a) : null); renderMarks(); };
+  const getMarks = () => { const m = mkKey() ? lj(mkKey(), []) : []; return Array.isArray(m) ? m : m.items || []; };
+  const putMarks = a => { a.sort((x, y) => x.t - y.t); ls.set(mkKey(), JSON.stringify({ at: Date.now(), items: a })); markDirty("marks", curKey(), true); renderMarks(); };
+
+  // ---------- sync marks + positions through the PC (sync_server.py behind tailscale serve /sync) ----------
+  // each entry carries `at` (ms); per video the newer entry wins, on the PC and here
+  const syncUrl = () => pcBase() ? pcBase() + "/sync/data" : "";
+  const LS = { marks: "pl-marks-", pos: "pl-pos-" };
+  const dirty = { marks: new Set(), pos: new Set() };
+  let syncT = 0, syncState = "";
+  function entry(col, k) { const e = lj(LS[col] + k, null); return Array.isArray(e) ? { at: 0, items: e } : e; }
+  function paintSync(st) { syncState = st; $("syncst").textContent = st === "ok" ? "已和电脑同步" : st === "off" ? "电脑没连上，先存在本机，连上后自动同步" : ""; }
+  function markDirty(col, k, soon) { if (!k) return; dirty[col].add(k); if (soon) { clearTimeout(syncT); syncT = setTimeout(push, 800); } else if (!syncT) syncT = setTimeout(push, 15000); }
+  function apply(d) {
+    for (const col of ["marks", "pos"]) for (const [k, r] of Object.entries((d && d[col]) || {})) {
+      const l = entry(col, k);
+      if (r && (!l || (r.at || 0) > (l.at || 0)) && !dirty[col].has(k)) ls.set(LS[col] + k, JSON.stringify(r));
+    }
+  }
+  async function pull() {
+    if (!syncUrl()) return;
+    try { const r = await fetch(syncUrl(), { cache: "no-store" }); if (!r.ok) throw 0; apply(await r.json()); paintSync("ok"); } catch (e) { paintSync("off"); }
+  }
+  async function push(beacon) {
+    clearTimeout(syncT); syncT = 0;
+    if (!syncUrl() || (!dirty.marks.size && !dirty.pos.size)) return;
+    const body = { marks: {}, pos: {} }, sent = { marks: [...dirty.marks], pos: [...dirty.pos] };
+    for (const col of ["marks", "pos"]) sent[col].forEach(k => { const e = entry(col, k); if (e) body[col][k] = e; });
+    try {
+      const r = await fetch(syncUrl(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), keepalive: !!beacon });
+      if (!r.ok) throw 0;
+      for (const col of ["marks", "pos"]) sent[col].forEach(k => dirty[col].delete(k));
+      if (!beacon) { apply(await r.json()); paintSync("ok"); }
+    } catch (e) { paintSync("off"); }
+  }
+  function firstSync() {
+    // push whatever this device recorded before syncing existed
+    if (ls.get("pl-synced")) return;
+    try { for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i);
+      for (const col of ["marks", "pos"]) if (k.startsWith(LS[col])) dirty[col].add(k.slice(LS[col].length)); } } catch (e) {}
+    ls.set("pl-synced", "1");
+  }
   function renderMarks() {
     const a = getMarks(), ul = $("mlist"), d = v.duration;
     $("marks").hidden = !curKey(); ul.innerHTML = "";
@@ -600,6 +643,9 @@ a { color: var(--accent); }
   async function start() {
     try { S.lib = await loadLib(); } catch (e) { S.lib = { courses: [] }; toast("录播列表读取失败（" + e.message + "），还可以打开本地视频。"); }
     paintPc();
+    firstSync();
+    await Promise.race([pull().then(push), new Promise(r => setTimeout(r, 3000))]);
+    setInterval(() => { if (!document.hidden) pull().then(() => { renderList(); renderMarks(); }); }, 60000);
     const cid = ls.get("pl-course"), last = ls.get("pl-last");
     S.course = S.lib.courses.find(c => c.id === cid) || S.lib.courses.find(c => c.items.some(ok)) || S.lib.courses[0] || null;
     renderChips(); renderList();
