@@ -929,7 +929,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   const URL_MAX = 7000;
   async function claudeTexts(q) {
     const r = await pagePieces(ASK.page);
-    const intro = "我在看斯图加特大学硕士课程的课件，请当助教，用中文回答：先直接回答，再讲清道理，需要时举个小算例；公式写成 LaTeX 放在 $…$ 里（不要放进代码块）。";
+    const intro = "我在看斯图加特大学硕士课程的课件，请当助教，用中文回答，简洁凝练、一语中的：第一句直接给答案（加粗），再最多三四个要点讲关键道理，确实需要才给很短的算例；不复述问题和课件，不铺垫、不写总结段；公式写成 LaTeX 放在 $…$ 里（不要放进代码块）。";
     const tail = (ASK.quote ? "\n\n【我选中的这段】\n" + ASK.quote : "") + "\n\n【我的问题】\n" + q;
     const full = intro + "\n\n" + [r.head, r.text, r.tr && "【这一页的中文翻译】\n" + r.tr, r.ch && "【这一页的老师带读】\n" + r.ch].filter(Boolean).join("\n\n") + tail;
     const make = (tr, ch) => intro + "\n\n" + [r.head, tr && "【这一页的中文翻译】\n" + tr, ch && "【这一页的老师带读】\n" + ch].filter(Boolean).join("\n\n") + tail;
@@ -976,7 +976,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     ASK.client = new Anthropic({ apiKey: k, dangerouslyAllowBrowser: true }); ASK.key = k;
     return ASK.client;
   }
-  const ASK_SYSTEM = "你是斯图加特大学硕士课程的助教。学生正在网页上看某节课的课件，会把那一页的课件文字、中文翻译、老师带读和问题一起发给你。用中文回答，先直接回答问题，再讲清道理；需要时举一个小算例。只依据课件内容和公认的专业知识，课件里没有、你也不确定的要说明。可以用 Markdown 的列表和加粗；公式写成 LaTeX 放在 $…$ 里（网页会渲染成公式），不要放进反引号或代码块。";
+  const ASK_SYSTEM = "你是斯图加特大学硕士课程的助教。学生正在网页上看某节课的课件，会把那一页的课件文字、中文翻译、老师带读和问题一起发给你。用中文回答，要简洁凝练、一语中的：第一句就直接给出答案或结论（加粗），然后最多三四个要点补上关键道理，只有确实需要时才给一个很短的算例。不复述问题和课件，不铺垫，不客套，不写总结段。只依据课件内容和公认的专业知识，不确定的一句话说明。可以用 Markdown 列表和加粗；公式写成 LaTeX 放在 $…$ 里（网页会渲染成公式），不要放进反引号或代码块。";
   // DeepSeek: OpenAI-style chat completions, called straight from the browser (CORS allows github.io)
   async function streamDeepseek(onText, onThinking) {
     const msgs = [{ role: "system", content: ASK_SYSTEM }].concat(ASK.conv.map(m => ({ role: m.role, content: typeof m.content === "string" ? m.content : (m.content || []).filter(b => b.type === "text").map(b => b.text).join("") })));
