@@ -339,6 +339,7 @@ a { color: var(--accent); }
     if (localFile) { setSrc(URL.createObjectURL(localFile), it.title); } else setSrc(srcOf(it), it.title);
     $("sub").innerHTML = "<span>" + esc(co.name) + "</span>" + (it.date ? "<span>" + esc(it.date) + "</span>" : "") + (it.note ? "<span>" + esc(it.note) + "</span>" : "");
     if (it.subs) addTrack(it.subs, false);
+    else if (it.path && !localFile && syncUrl()) loadSideSubs(it);
     renderChips(); renderList(); renderMarks(); afterLoad(play);
     if ("mediaSession" in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: it.title, artist: co.name });
   }
@@ -587,6 +588,13 @@ a { color: var(--accent); }
   }
 
   // ---------- subtitles ----------
+  // subtitles saved next to a recording on the PC (same name .vtt/.srt), served with CORS by sync_server.py
+  async function loadSideSubs(it) {
+    try {
+      const r = await fetch(pcBase() + "/sync/sub/" + it.path.split("/").map(encodeURIComponent).join("/"), { cache: "no-cache" });
+      if (r.ok && S.item === it) addTrack(await r.text(), true);
+    } catch (e) {}
+  }
   function srt2vtt(s) { return "WEBVTT\n\n" + s.replace(/\r/g, "").replace(/(\d\d:\d\d:\d\d),(\d\d\d)/g, "$1.$2").replace(/^\d+\n(?=\d\d:)/gm, ""); }
   function addTrack(src, isText) {
     [...v.querySelectorAll("track")].forEach(t => t.remove());
