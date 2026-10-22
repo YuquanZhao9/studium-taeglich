@@ -87,7 +87,7 @@ a { color: var(--accent); }
 .player .big { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(0,0,0,.45); display: grid; place-items: center; pointer-events: none; transition: opacity .2s; }
 .player .spin { position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; margin: -19px 0 0 -19px; border: 3px solid rgba(255,255,255,.25); border-top-color: #fff; border-radius: 50%; animation: sp 0.9s linear infinite; pointer-events: none; }
 @keyframes sp { to { transform: rotate(360deg); } }
-.player .toast { position: absolute; left: 14px; bottom: 64px; background: rgba(20,20,24,.82); border-radius: 6px; padding: 7px 12px; font-size: 13px; pointer-events: auto; display: flex; gap: 10px; align-items: center; max-width: calc(100% - 28px); }
+.player .toast { position: absolute; z-index: 3; left: 14px; bottom: 64px; background: rgba(20,20,24,.82); border-radius: 6px; padding: 7px 12px; font-size: 13px; pointer-events: auto; display: flex; gap: 10px; align-items: center; max-width: calc(100% - 28px); }
 .player .toast button { background: none; border: none; color: var(--pink); cursor: pointer; padding: 0; font-size: 13px; }
 .player .center { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); background: rgba(20,20,24,.78); border-radius: 8px; padding: 8px 16px; font: 600 15px var(--ui); pointer-events: none; white-space: nowrap; }
 .player .ripple { position: absolute; top: 0; bottom: 0; width: 34%; display: grid; place-items: center; pointer-events: none; font: 600 14px var(--ui); }
@@ -106,6 +106,20 @@ a { color: var(--accent); }
 .prog .done { background: var(--pink); }
 .prog .knob { position: absolute; top: 50%; width: 14px; height: 14px; margin: -7px 0 0 -7px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 3px rgba(251,114,153,.45); transform: scale(0); transition: transform .12s; }
 .prog:hover .knob, .prog.drag .knob { transform: scale(1); }
+.prog .mk { position: absolute; top: -1px; width: 4px; height: 8px; margin-left: -2px; border-radius: 1px; background: #ffd34d; box-shadow: 0 0 0 1px rgba(0,0,0,.35); pointer-events: none; }
+.prog:hover .mk, .prog.drag .mk { top: 0; }
+.marks { margin-top: 14px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; }
+.marks .mh { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; font-size: 13px; color: var(--muted); border-bottom: 1px solid var(--line); }
+.marks .mh b { color: var(--ink); font-size: 14px; }
+.marks ul { list-style: none; margin: 0; padding: 4px 0; max-height: 260px; overflow-y: auto; }
+.marks li { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; gap: 8px; align-items: center; padding: 4px 8px 4px 14px; }
+.marks li:hover { background: var(--accent-soft); }
+.marks .tm { font: 13px var(--mono); color: var(--accent); background: none; border: none; cursor: pointer; padding: 2px 0; }
+.marks .nt { font-size: 14px; cursor: pointer; overflow-wrap: anywhere; }
+.marks .nt.empty { color: var(--muted); font-size: 13px; }
+.marks .x { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 13px; padding: 4px 6px; border-radius: 6px; }
+.marks .x:hover { color: var(--ink); background: var(--line); }
+.marks .none { padding: 10px 14px; color: var(--muted); font-size: 13px; }
 .prog .tip { position: absolute; bottom: 20px; transform: translateX(-50%); background: rgba(20,20,24,.85); border-radius: 4px; padding: 2px 6px; font: 12px var(--mono); pointer-events: none; white-space: nowrap; }
 .ctr { display: flex; align-items: center; gap: 4px; height: 38px; }
 .ctr .sp { flex: 1; }
@@ -140,6 +154,8 @@ a { color: var(--accent); }
   .side { padding: 4px 16px 24px; }
   .chips { flex-wrap: nowrap; }
   .list ol { max-height: none; }
+  .marks { margin-top: 10px; }
+  .marks ul { max-height: 132px; }
   .ib { min-width: 34px; padding: 0 4px; }
   .time { font-size: 12px; padding: 0 2px; }
   .player .bar { padding: 22px 6px 2px; }
@@ -179,7 +195,7 @@ a { color: var(--accent); }
       <div class="toast" id="toast" hidden></div>
       <div class="bar" id="bar">
         <div class="prog" id="prog">
-          <div class="rail"><div class="buf" id="buf"></div><div class="done" id="done"></div><div class="knob" id="knob"></div></div>
+          <div class="rail"><div class="buf" id="buf"></div><div class="done" id="done"></div><div id="mks"></div><div class="knob" id="knob"></div></div>
           <div class="tip" id="tip" hidden></div>
         </div>
         <div class="ctr">
@@ -188,6 +204,7 @@ a { color: var(--accent); }
           <span class="time"><span id="tcur">0:00</span> / <span id="tdur">0:00</span></span>
           <span class="sp"></span>
           <div class="pop" id="ratepop"><button class="ib" id="brate" title="倍速 ([ ])">倍速</button><div class="menu" id="ratemenu"></div></div>
+          <button class="ib" id="bmark" title="标记当前时间 (B)"><svg viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4zm2 2v12.2l4-2.7 4 2.7V5z"/></svg></button>
           <button class="ib" id="bsub" title="字幕 (C)" hidden>字幕</button>
           <div class="vol hide-m"><button class="ib" id="bmute" title="静音 (M)"><svg viewBox="0 0 24 24"><path id="ivol" d="M4 9v6h4l5 4V5L8 9zm12.5 3a4.5 4.5 0 0 0-2.5-4v8a4.5 4.5 0 0 0 2.5-4z"/></svg></button><input type="range" id="vol" min="0" max="1" step="0.05" aria-label="音量"></div>
           <button class="ib" id="bpip" title="小窗" hidden><svg viewBox="0 0 24 24"><path d="M19 7h-8v6h8zm2-4H3a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h18a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2zm0 16H3V5h18z"/></svg></button>
@@ -204,10 +221,14 @@ a { color: var(--accent); }
         <label class="btn">加载字幕<input type="file" id="fsub" accept=".vtt,.srt"></label>
         <button class="btn" type="button" id="bpc">设置电脑地址</button>
       </div>
+      <div class="marks" id="marks" hidden>
+        <div class="mh"><b>我的标记</b><span>点时间跳过去，点文字改备注</span></div>
+        <ul id="mlist"></ul>
+      </div>
       <div class="keys">
         <span><kbd>空格</kbd> 播放/暂停</span><span><kbd>←</kbd><kbd>→</kbd> 5 秒</span><span>长按 <kbd>→</kbd> 3 倍速</span>
         <span><kbd>[</kbd><kbd>]</kbd> 倍速</span><span><kbd>↑</kbd><kbd>↓</kbd> 音量</span><span><kbd>F</kbd> 全屏</span><span><kbd>W</kbd> 网页全屏</span>
-        <span><kbd>M</kbd> 静音</span><span><kbd>C</kbd> 字幕</span><span><kbd>N</kbd> 下一节</span><span><kbd>0</kbd>–<kbd>9</kbd> 跳到 0–90%</span>
+        <span><kbd>M</kbd> 静音</span><span><kbd>C</kbd> 字幕</span><span><kbd>N</kbd> 下一节</span><span><kbd>B</kbd> 标记</span><span><kbd>0</kbd>–<kbd>9</kbd> 跳到 0–90%</span>
       </div>
     </div>
   </section>
@@ -315,7 +336,7 @@ a { color: var(--accent); }
     if (localFile) { setSrc(URL.createObjectURL(localFile), it.title); } else setSrc(srcOf(it), it.title);
     $("sub").innerHTML = "<span>" + esc(co.name) + "</span>" + (it.date ? "<span>" + esc(it.date) + "</span>" : "") + (it.note ? "<span>" + esc(it.note) + "</span>" : "");
     if (it.subs) addTrack(it.subs, false);
-    renderChips(); renderList(); afterLoad(play);
+    renderChips(); renderList(); renderMarks(); afterLoad(play);
     if ("mediaSession" in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: it.title, artist: co.name });
   }
   function openLocal(file) {
@@ -323,7 +344,7 @@ a { color: var(--accent); }
     S.item = null; S.local = { name: file.name, size: file.size };
     setSrc(URL.createObjectURL(file), file.name.replace(/\.[^.]+$/, ""));
     $("sub").innerHTML = "<span>本地文件</span><span>" + (file.size / 1048576).toFixed(0) + " MB</span>";
-    renderList(); afterLoad(true);
+    renderList(); renderMarks(); afterLoad(true);
   }
   function afterLoad(play) {
     const p = lj(posKey(curKey()), null);
@@ -396,8 +417,43 @@ a { color: var(--accent); }
     $("buf").style.width = (d ? b / d * 100 : 0) + "%";
   }
   ["timeupdate", "durationchange", "progress", "seeking"].forEach(e => v.addEventListener(e, paintTime));
+
+  // ---------- marks (bookmarks), per video, stored on this device ----------
+  const mkKey = () => curKey() && "pl-marks-" + curKey();
+  const getMarks = () => mkKey() ? lj(mkKey(), []) : [];
+  const putMarks = a => { a.sort((x, y) => x.t - y.t); ls.set(mkKey(), a.length ? JSON.stringify(a) : null); renderMarks(); };
+  function renderMarks() {
+    const a = getMarks(), ul = $("mlist"), d = v.duration;
+    $("marks").hidden = !curKey(); ul.innerHTML = "";
+    $("mks").innerHTML = d ? a.map(m => "<i class='mk' style='left:" + (m.t / d * 100) + "%'></i>").join("") : "";
+    if (!a.length) { ul.innerHTML = "<li class='none'>还没有标记。播放时点进度条右边的书签按钮（或按 B）就能记下当前时间。</li>"; return; }
+    a.forEach((m, i) => {
+      const li = document.createElement("li");
+      li.innerHTML = "<button class='tm' type='button'>" + fmt(m.t) + "</button><span class='nt" + (m.note ? "" : " empty") + "'>" + esc(m.note || "加备注") + "</span><button class='x' type='button' title='改备注'>✎</button><button class='x' type='button' title='删除'>✕</button>";
+      const [tm, nt, ed, del] = li.children;
+      tm.onclick = () => { v.currentTime = m.t; if (v.paused) v.play().catch(() => {}); };
+      nt.onclick = ed.onclick = () => editMark(i);
+      del.onclick = () => { const b = getMarks(); b.splice(i, 1); putMarks(b); };
+      ul.appendChild(li);
+    });
+  }
+  function editMark(i) {
+    const a = getMarks(); if (!a[i]) return;
+    const n = prompt("备注（" + fmt(a[i].t) + "）", a[i].note || "");
+    if (n == null) return; a[i].note = n.trim(); putMarks(a);
+  }
+  function addMark() {
+    if (!curKey() || !v.duration) return;
+    const t = Math.round(v.currentTime * 10) / 10, a = getMarks();
+    if (a.some(m => Math.abs(m.t - t) < 2)) { center("这里已经标记过了"); return; }
+    a.push({ t, note: "", at: Date.now() }); putMarks(a);
+    const i = getMarks().findIndex(m => m.t === t);
+    toast("已标记 " + fmt(t), "加备注", () => editMark(i));
+  }
+  $("bmark").onclick = e => { e.stopPropagation(); addMark(); };
+  v.addEventListener("durationchange", renderMarks);
   const frac = e => { const r = prog.getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); };
-  function tipAt(e) { const f = frac(e), t = $("tip"); t.hidden = !v.duration; t.textContent = fmt(f * v.duration); t.style.left = Math.min(Math.max(f * 100, 4), 96) + "%"; }
+  function tipAt(e) { const f = frac(e), t = $("tip"); t.hidden = !v.duration; t.textContent = fmt(f * v.duration); const mk = getMarks().find(m => Math.abs(m.t / v.duration - f) < 0.006); if (mk) t.textContent += mk.note ? "  ★ " + mk.note : "  ★"; t.style.left = Math.min(Math.max(f * 100, 4), 96) + "%"; }
   let dragging = false;
   prog.addEventListener("pointerdown", e => { if (!v.duration) return; dragging = true; prog.classList.add("drag"); prog.setPointerCapture(e.pointerId); v.currentTime = frac(e) * v.duration; tipAt(e); e.stopPropagation(); });
   prog.addEventListener("pointermove", e => { tipAt(e); if (dragging) { v.currentTime = frac(e) * v.duration; poke(); } });
@@ -518,7 +574,7 @@ a { color: var(--accent); }
     const map = {
       " ": toggle, k: toggle, ArrowLeft: () => { seek(-5); center("« 5 秒"); }, ArrowUp: () => stepVol(0.05), ArrowDown: () => stepVol(-0.05),
       f: toggleFs, w: toggleWfs, m: () => { v.muted = !v.muted; center(v.muted ? "已静音" : "取消静音"); }, "[": () => stepRate(-1), "]": () => stepRate(1),
-      c: () => $("bsub").hidden || $("bsub").click(), n: () => next(), Escape: () => pl.classList.contains("wfs") && toggleWfs()
+      c: () => $("bsub").hidden || $("bsub").click(), n: () => next(), b: addMark, Escape: () => pl.classList.contains("wfs") && toggleWfs()
     };
     const fn = map[k.length === 1 ? k.toLowerCase() : k];
     if (fn) { e.preventDefault(); fn(); poke(); return; }
