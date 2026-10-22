@@ -1,0 +1,83 @@
+#!/usr/bin/env python3
+"""Tiny sync store for the course player (marks + resume positions), run on the user's PC.
+
+Listens on 127.0.0.1:8765 only; Tailscale exposes it to the user's own devices with
+    tailscale serve --bg --set-path /sync http://127.0.0.1:8765
+GET  any path  -> the whole store as JSON
+POST any path  -> body {"marks": {id: {"at": ms, "items": [...]}}, "pos": {id: {"at": ms, ...}}};
+                  per id the entry with the larger "at" wins; returns the merged store.
+Data file: %LOCALAPPDATA%\\StudiumPlayer\\sync.json (outside the served lecture folder).
+"""
+import json, os, threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+DIR = os.path.join(os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), "StudiumPlayer")
+FILE = os.path.join(DIR, "sync.json")
+LOCK = threading.Lock()
+ORIGIN = "https://yuquanzhao9.github.io"
+
+
+def load():
+    try:
+        with open(FILE, encoding="utf-8") as f:
+            d = json.load(f)
+    except (OSError, ValueError):
+        d = {}
+    d.setdefault("marks", {}); d.setdefault("pos", {})
+    return d
+
+
+def save(d):
+    os.makedirs(DIR, exist_ok=True)
+    tmp = FILE + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
+        json.dump(d, f, ensure_ascii=False)
+    os.replace(tmp, FILE)
+
+
+class H(BaseHTTPRequestHandler):
+    def cors(self):
+        o = self.headers.get("Origin")
+        self.send_header("Access-Control-Allow-Origin", o if o in (ORIGIN, "http://localhost:8123") else ORIGIN)
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Private-Network", "true")
+        self.send_header("Access-Control-Max-Age", "86400")
+        self.send_header("Vary", "Origin")
+
+    def reply(self, code, obj):
+        b = json.dumps(obj, ensure_ascii=False).encode()
+        self.send_response(code); self.cors()
+        self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("Content-Length", str(len(b))); self.end_headers(); self.wfile.write(b)
+
+    def do_OPTIONS(self):
+        self.send_response(204); self.cors(); self.send_header("Content-Length", "0"); self.end_headers()
+
+    def do_GET(self):
+        with LOCK:
+            self.reply(200, load())
+
+    def do_POST(self):
+        try:
+            n = int(self.headers.get("Content-Length") or 0)
+            if n > 5_000_000: return self.reply(413, {"error": "too large"})
+            inc = json.loads(self.rfile.read(n) or b"{}")
+        except ValueError:
+            return self.reply(400, {"error": "bad json"})
+        with LOCK:
+            d = load()
+            for col in ("marks", "pos"):
+                for k, v in (inc.get(col) or {}).items():
+                    if isinstance(v, dict) and (k not in d[col] or (v.get("at") or 0) > (d[col][k].get("at") or 0)):
+                        d[col][k] = v
+            save(d)
+            self.reply(200, d)
+
+    def log_message(self, *a):
+        pass
+
+
+if __name__ == "__main__":
+    ThreadingHTTPServer(("127.0.0.1", 8765), H).serve_forever()
