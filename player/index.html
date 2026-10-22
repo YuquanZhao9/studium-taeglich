@@ -202,6 +202,7 @@ a { color: var(--accent); }
       <div class="tools">
         <label class="btn">打开本地视频<input type="file" id="fvid" accept="video/*,.mkv,.mov,.m4v"></label>
         <label class="btn">加载字幕<input type="file" id="fsub" accept=".vtt,.srt"></label>
+        <button class="btn" type="button" id="bpc">设置电脑地址</button>
       </div>
       <div class="keys">
         <span><kbd>空格</kbd> 播放/暂停</span><span><kbd>←</kbd><kbd>→</kbd> 5 秒</span><span>长按 <kbd>→</kbd> 3 倍速</span>
@@ -262,7 +263,7 @@ a { color: var(--accent); }
     S.lib.courses.forEach(co => {
       const b = document.createElement("button"); b.className = "chip" + (co === S.course ? " on" : "");
       b.style.setProperty("--cc", "var(--c-" + co.id + ", var(--muted))");
-      const have = co.items.filter(i => i.url).length;
+      const have = co.items.filter(ok).length;
       b.innerHTML = "<i></i>" + esc(co.name) + (have ? " <small>" + have + "</small>" : "");
       b.onclick = () => { S.course = co; ls.set("pl-course", co.id); renderChips(); renderList(); };
       c.appendChild(b);
@@ -277,17 +278,30 @@ a { color: var(--accent); }
     co.items.forEach((it, i) => {
       const p = lj(posKey(it.id), null), dur = (p && p.d) || it.dur || 0;
       const pct = p ? (p.end ? 100 : dur ? Math.min(100, p.t / dur * 100) : 0) : 0;
-      const li = document.createElement("li"); li.className = (it === S.item ? "on" : "") + (it.url ? "" : " miss");
-      const info = !it.url ? "未上传 · 点此选本地文件" : p && p.end ? "<span class='done'>✓ 看完了</span>" : p && p.t > 5 ? "看到 " + fmt(p.t) : (dur ? fmt(dur) : "");
+      const li = document.createElement("li"); li.className = (it === S.item ? "on" : "") + (ok(it) ? "" : " miss");
+      const info = !ok(it) ? "未上传 · 点此选本地文件" : p && p.end ? "<span class='done'>✓ 看完了</span>" : p && p.t > 5 ? "看到 " + fmt(p.t) : (dur ? fmt(dur) : "");
       li.innerHTML = "<button type='button'><span class='n'>" + String(i + 1).padStart(2, "0") + "</span><span class='t'>" + esc(it.title) + "</span><span class='d'>" +
         (it.date ? "<span>" + esc(it.date) + "</span>" : "") + "<span>" + info + "</span>" + (pct ? "<span class='pg'><i style='width:" + pct + "%'></i></span>" : "") + "</span></button>";
-      li.firstChild.onclick = () => it.url ? openItem(co, it, true) : pickFor(co, it);
+      li.firstChild.onclick = () => !ok(it) ? pickFor(co, it) : it.path && !pcBase() && !askPc() ? null : openItem(co, it, true);
       ol.appendChild(li);
     });
   }
   function pickFor(co, it) {
     const f = $("fvid"); f.dataset.for = co.id + "|" + it.id; f.click();
   }
+
+  // ---------- recordings served from the PC (Tailscale) ----------
+  // items with `path` (relative to F:\Stuttgart uni\Vorlesungen) play from the PC address saved on this device
+  const ok = it => !!(it.url || it.path);
+  const pcBase = () => (ls.get("pl-pc") || "").replace(/\/+$/, "");
+  const srcOf = it => it.url || pcBase() + "/" + it.path.split("/").map(encodeURIComponent).join("/");
+  function askPc() {
+    const v0 = prompt("电脑地址（Tailscale 里电脑的 https 地址，例如 https://tyr10n.xxxx.ts.net）", pcBase() || "https://");
+    if (v0 == null) return false;
+    const u = v0.trim(); if (!/^https:\/\/[^/]+/.test(u)) { alert("要以 https:// 开头"); return false; }
+    ls.set("pl-pc", u); paintPc(); return true;
+  }
+  function paintPc() { $("bpc").textContent = pcBase() ? "电脑地址：" + pcBase().replace(/^https:\/\//, "").split(".")[0] : "设置电脑地址"; }
 
   // ---------- open ----------
   function setSrc(url, title) {
@@ -298,7 +312,7 @@ a { color: var(--accent); }
   function openItem(co, it, play, localFile) {
     saveNow();
     S.course = co; S.item = it; S.local = null; ls.set("pl-course", co.id); ls.set("pl-last", it.id);
-    if (localFile) { setSrc(URL.createObjectURL(localFile), it.title); } else setSrc(it.url, it.title);
+    if (localFile) { setSrc(URL.createObjectURL(localFile), it.title); } else setSrc(srcOf(it), it.title);
     $("sub").innerHTML = "<span>" + esc(co.name) + "</span>" + (it.date ? "<span>" + esc(it.date) + "</span>" : "") + (it.note ? "<span>" + esc(it.note) + "</span>" : "");
     if (it.subs) addTrack(it.subs, false);
     renderChips(); renderList(); afterLoad(play);
@@ -337,7 +351,7 @@ a { color: var(--accent); }
   function next(auto) {
     if (!S.course || !S.item) return;
     const a = S.course.items, i = a.indexOf(S.item);
-    const n = a.slice(i + 1).find(x => x.url);
+    const n = a.slice(i + 1).find(ok);
     if (n) { openItem(S.course, n, true); if (auto) center("自动播放下一节"); }
     else center("已经是最后一节");
   }
@@ -369,7 +383,7 @@ a { color: var(--accent); }
   v.addEventListener("play", paintPlay); v.addEventListener("pause", paintPlay);
   v.addEventListener("waiting", () => $("spin").hidden = false);
   ["playing", "canplay", "seeked", "pause"].forEach(e => v.addEventListener(e, () => $("spin").hidden = true));
-  v.addEventListener("error", () => { if (v.src) toast("这个视频放不了（链接失效，或格式手机不支持；mp4/H.264 最稳）"); });
+  v.addEventListener("error", () => { if (!v.src) return; toast(S.item && S.item.path && !S.item.url ? "连不上电脑：确认电脑开着、Tailscale 两边都连上了" : "这个视频放不了（链接失效，或格式手机不支持；mp4/H.264 最稳）", S.item && S.item.path ? "改电脑地址" : null, askPc); });
   $("bplay").onclick = toggle; $("bnext").onclick = () => next();
   const seek = d => { if (!v.duration) return; v.currentTime = Math.min(v.duration - 0.1, Math.max(0, v.currentTime + d)); };
 
@@ -526,13 +540,13 @@ a { color: var(--accent); }
   // ---------- start ----------
   $("auto").checked = ls.get("pl-auto") !== "0";
   $("auto").onchange = () => ls.set("pl-auto", $("auto").checked ? "1" : "0");
-  paintRate();
+  paintRate(); paintPc(); $("bpc").onclick = () => { if (askPc()) renderList(); };
   async function start() {
     try { S.lib = await loadLib(); } catch (e) { S.lib = { courses: [] }; toast("录播列表读取失败（" + e.message + "），还可以打开本地视频。"); }
     const cid = ls.get("pl-course"), last = ls.get("pl-last");
-    S.course = S.lib.courses.find(c => c.id === cid) || S.lib.courses.find(c => c.items.some(i => i.url)) || S.lib.courses[0] || null;
+    S.course = S.lib.courses.find(c => c.id === cid) || S.lib.courses.find(c => c.items.some(ok)) || S.lib.courses[0] || null;
     renderChips(); renderList();
-    for (const co of S.lib.courses) { const it = co.items.find(i => i.id === last && i.url); if (it) { openItem(co, it, false); break; } }
+    for (const co of S.lib.courses) { const it = co.items.find(i => i.id === last && ok(i) && (i.url || pcBase())); if (it) { openItem(co, it, false); break; } }
   }
   (async () => {
     const saved = ls.get("st-key");
