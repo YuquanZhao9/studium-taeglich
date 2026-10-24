@@ -7,6 +7,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="看课">
 <title>看课播放器</title>
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 :root { --bg: #f6f7fa; --card: #ffffff; --ink: #2f3342; --muted: #8a8fa0; --line: #e4e7ee;
@@ -65,6 +66,12 @@ a { color: var(--accent); }
 .list .lh b { color: var(--ink); font-size: 14px; }
 .list .lh label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
 .list ol { list-style: none; margin: 0; padding: 4px 0; max-height: calc(100vh - 300px); overflow-y: auto; }
+.list li { display: flex; align-items: stretch; }
+.list li > button.dl { flex: none; width: auto; min-width: 46px; display: grid; place-items: center; padding: 0 12px; color: var(--muted); font: 12px var(--mono); }
+.list li > button.dl.have { color: #2f8a4e; font-size: 15px; }
+.list li > button.dl.busy { color: var(--accent); }
+.list .off { padding: 6px 14px; font-size: 12px; color: var(--muted); border-bottom: 1px solid var(--line); display: flex; justify-content: space-between; gap: 8px; }
+.list .off:empty { display: none; }
 .list li button { width: 100%; text-align: left; border: none; background: none; padding: 9px 14px; cursor: pointer; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 4px 8px; align-items: start; }
 .list li button:hover { background: var(--accent-soft); }
 .list li.on button { background: var(--accent-soft); }
@@ -240,6 +247,7 @@ a { color: var(--accent); }
     <div class="chips" id="chips"></div>
     <div class="list">
       <div class="lh"><b id="ltitle"></b><label><input type="checkbox" id="auto"> 自动连播</label></div>
+      <div class="off" id="offinfo"></div>
       <ol id="items"></ol>
     </div>
   </aside>
@@ -306,7 +314,15 @@ a { color: var(--accent); }
       const info = !ok(it) ? "未上传 · 点此选本地文件" : p && p.end ? "<span class='done'>✓ 看完了</span>" : p && p.t > 5 ? "看到 " + fmt(p.t) : (dur ? fmt(dur) : "");
       li.innerHTML = "<button type='button'><span class='n'>" + String(i + 1).padStart(2, "0") + "</span><span class='t'>" + esc(it.title) + "</span><span class='d'>" +
         (it.date ? "<span>" + esc(it.date) + "</span>" : "") + "<span>" + info + "</span>" + (pct ? "<span class='pg'><i style='width:" + pct + "%'></i></span>" : "") + "</span></button>";
-      li.firstChild.onclick = () => !ok(it) ? pickFor(co, it) : it.path && !pcBase() && !askPc() ? null : openItem(co, it, true);
+      li.firstChild.onclick = () => !ok(it) ? pickFor(co, it) : OFF.have.has(it.id) || !it.path || pcBase() || askPc() ? openItem(co, it, true) : null;
+      if (it.path) {
+        const d = document.createElement("button"), busy = OFF.busy[it.id], have = OFF.have.has(it.id);
+        d.type = "button"; d.className = "dl" + (have ? " have" : busy != null ? " busy" : "");
+        d.textContent = have ? "✓" : busy != null ? busy + "%" : "⤓";
+        d.title = have ? "已下载到这台设备，点一下删除" : busy != null ? "下载中" : "下载到这台设备，没网也能看";
+        d.onclick = () => have ? removeOffline(it) : download(it);
+        li.appendChild(d);
+      }
       ol.appendChild(li);
     });
   }
@@ -327,20 +343,78 @@ a { color: var(--accent); }
   }
   function paintPc() { $("bpc").textContent = pcBase() ? "电脑地址：" + pcBase().replace(/^https:\/\//, "").split(".")[0] : "设置电脑地址"; }
 
+  // ---------- offline: recordings downloaded into this browser (Cache Storage "pl-videos") ----------
+  const VC = "pl-videos", OFF = { have: new Set(), busy: {} };
+  const offKey = id => new URL("offline/" + encodeURIComponent(id), location.href).href;
+  const encPath = p => p.split("/").map(encodeURIComponent).join("/");
+  async function offRefresh() {
+    try { const ks = await (await caches.open(VC)).keys(); OFF.have = new Set(ks.map(r => decodeURIComponent(r.url.split("/offline/")[1] || "")).filter(x => x && !x.endsWith(".vtt"))); } catch (e) {}
+    let txt = "";
+    if (OFF.have.size) {
+      txt = "<span>已下载 " + OFF.have.size + " 节，没网也能看</span>";
+      try { const q = await navigator.storage.estimate(); txt += "<span>占用 " + (q.usage >= 1073741824 ? (q.usage / 1073741824).toFixed(1) + " GB" : Math.round(q.usage / 1048576) + " MB") + "</span>"; } catch (e) {}
+    }
+    $("offinfo").innerHTML = txt;
+  }
+  async function download(it) {
+    if (OFF.busy[it.id] != null) return;
+    if (!pcBase() && !askPc()) return;
+    OFF.busy[it.id] = 0; renderList();
+    try {
+      try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (e) {}
+      const r = await fetch(pcBase() + "/sync/file/" + encPath(it.path), { cache: "no-store" });
+      if (!r.ok) throw new Error(r.status === 404 ? "电脑上找不到这个文件" : "电脑返回 " + r.status);
+      const total = +r.headers.get("Content-Length") || 0; let got = 0;
+      const counter = new TransformStream({ transform(ch, ctl) {
+        got += ch.byteLength; const p = total ? Math.min(99, Math.floor(got / total * 100)) : 0;
+        if (p !== OFF.busy[it.id]) { OFF.busy[it.id] = p; if (S.course && S.course.items.includes(it)) renderList(); }
+        ctl.enqueue(ch);
+      } });
+      const c = await caches.open(VC);
+      await c.put(offKey(it.id), new Response(r.body.pipeThrough(counter), { headers: { "Content-Type": "video/mp4" } }));
+      try { const t = await fetch(pcBase() + "/sync/sub/" + encPath(it.path)); if (t.ok) await c.put(offKey(it.id + ".vtt"), new Response(await t.text(), { headers: { "Content-Type": "text/vtt" } })); } catch (e) {}
+      toast("已下载：" + it.title + "，没网也能看");
+    } catch (e) {
+      toast("下载失败：" + (e && e.name === "QuotaExceededError" ? "这台设备给网页的空间不够了，先删掉几节" : e instanceof TypeError ? "连不上电脑（要在电脑开着、Tailscale 连着时下载）" : e.message));
+      try { await (await caches.open(VC)).delete(offKey(it.id)); } catch (x) {}
+    }
+    delete OFF.busy[it.id]; await offRefresh(); renderList();
+  }
+  async function removeOffline(it) {
+    if (!confirm("从这台设备删掉「" + it.title + "」的下载？（电脑上的文件不受影响）")) return;
+    try { const c = await caches.open(VC); await c.delete(offKey(it.id)); await c.delete(offKey(it.id + ".vtt")); } catch (e) {}
+    await offRefresh(); renderList();
+  }
+
   // ---------- open ----------
   function setSrc(url, title) {
     if (S.subUrl) { [...v.querySelectorAll("track")].forEach(t => t.remove()); URL.revokeObjectURL(S.subUrl); S.subUrl = null; $("bsub").hidden = true; }
+    if (S.blobUrl && S.blobUrl !== url) { URL.revokeObjectURL(S.blobUrl); S.blobUrl = null; }
+    if (url && url.startsWith("blob:")) S.blobUrl = url;
     v.src = url; v.playbackRate = rate(); $("empty").hidden = true;
     $("title").textContent = title; $("ttl").textContent = title; document.title = title + " · 看课";
   }
   function openItem(co, it, play, localFile) {
     saveNow();
     S.course = co; S.item = it; S.local = null; ls.set("pl-course", co.id); ls.set("pl-last", it.id);
-    if (localFile) { setSrc(URL.createObjectURL(localFile), it.title); } else setSrc(srcOf(it), it.title);
-    $("sub").innerHTML = "<span>" + esc(co.name) + "</span>" + (it.date ? "<span>" + esc(it.date) + "</span>" : "") + (it.note ? "<span>" + esc(it.note) + "</span>" : "");
-    if (it.subs) addTrack(it.subs, false);
-    else if (it.path && !localFile && syncUrl()) loadSideSubs(it);
-    renderChips(); renderList(); renderMarks(); afterLoad(play);
+    const offline = !localFile && OFF.have.has(it.id);
+    $("sub").innerHTML = "<span>" + esc(co.name) + "</span>" + (it.date ? "<span>" + esc(it.date) + "</span>" : "") + (offline ? "<span>已下载 · 离线可看</span>" : "") + (it.note ? "<span>" + esc(it.note) + "</span>" : "");
+    renderChips(); renderList(); renderMarks();
+    if (offline) {
+      // downloaded copy: play from this browser's storage, no network needed
+      caches.open(VC).then(c => Promise.all([c.match(offKey(it.id)), c.match(offKey(it.id + ".vtt"))])).then(async ([r, sub]) => {
+        if (S.item !== it) return;
+        if (!r) { OFF.have.delete(it.id); return openItem(co, it, play); }
+        setSrc(URL.createObjectURL(await r.blob()), it.title);
+        if (sub) addTrack(await sub.text(), true);
+        afterLoad(play);
+      });
+    } else {
+      if (localFile) setSrc(URL.createObjectURL(localFile), it.title); else setSrc(srcOf(it), it.title);
+      if (it.subs) addTrack(it.subs, false);
+      else if (it.path && !localFile && syncUrl()) loadSideSubs(it);
+      afterLoad(play);
+    }
     if ("mediaSession" in navigator) navigator.mediaSession.metadata = new MediaMetadata({ title: it.title, artist: co.name });
   }
   function openLocal(file) {
@@ -372,6 +446,7 @@ a { color: var(--accent); }
   v.addEventListener("timeupdate", () => { const n = Date.now(); if (n - lastSave > 4000) { lastSave = n; saveNow(); } });
   v.addEventListener("pause", () => { saveNow(); renderList(); push(); });
   addEventListener("pagehide", () => { saveNow(); push(true); });
+  addEventListener("online", () => pull().then(push));
   document.addEventListener("visibilitychange", () => { if (document.hidden) { saveNow(); push(true); } else pull().then(() => { renderList(); renderMarks(); }); });
   v.addEventListener("ended", () => { saveNow(); renderList(); if ($("auto").checked) next(true); });
   function next(auto) {
@@ -436,7 +511,9 @@ a { color: var(--accent); }
   let syncT = 0, syncState = "";
   function entry(col, k) { const e = lj(LS[col] + k, null); return Array.isArray(e) ? { at: 0, items: e } : e; }
   function paintSync(st) { syncState = st; $("syncst").textContent = st === "ok" ? "已和电脑同步" : st === "off" ? "电脑没连上，先存在本机，连上后自动同步" : ""; }
-  function markDirty(col, k, soon) { if (!k) return; dirty[col].add(k); if (soon) { clearTimeout(syncT); syncT = setTimeout(push, 800); } else if (!syncT) syncT = setTimeout(push, 15000); }
+  const saveDirty = () => ls.set("pl-dirty", dirty.marks.size || dirty.pos.size ? JSON.stringify({ marks: [...dirty.marks], pos: [...dirty.pos] }) : null);
+  { const d = lj("pl-dirty", null); if (d) { (d.marks || []).forEach(k => dirty.marks.add(k)); (d.pos || []).forEach(k => dirty.pos.add(k)); } }
+  function markDirty(col, k, soon) { if (!k) return; dirty[col].add(k); saveDirty(); if (soon) { clearTimeout(syncT); syncT = setTimeout(push, 800); } else if (!syncT) syncT = setTimeout(push, 15000); }
   function apply(d) {
     for (const col of ["marks", "pos"]) for (const [k, r] of Object.entries((d && d[col]) || {})) {
       const l = entry(col, k);
@@ -456,6 +533,7 @@ a { color: var(--accent); }
       const r = await fetch(syncUrl(), { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body), keepalive: !!beacon });
       if (!r.ok) throw 0;
       for (const col of ["marks", "pos"]) sent[col].forEach(k => dirty[col].delete(k));
+      saveDirty();
       if (!beacon) { apply(await r.json()); paintSync("ok"); }
     } catch (e) { paintSync("off"); }
   }
@@ -645,12 +723,14 @@ a { color: var(--accent); }
   }
 
   // ---------- start ----------
+  if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
   $("auto").checked = ls.get("pl-auto") !== "0";
   $("auto").onchange = () => ls.set("pl-auto", $("auto").checked ? "1" : "0");
   paintRate(); paintPc(); $("bpc").onclick = () => { if (askPc()) renderList(); };
   async function start() {
     try { S.lib = await loadLib(); } catch (e) { S.lib = { courses: [] }; toast("录播列表读取失败（" + e.message + "），还可以打开本地视频。"); }
     paintPc();
+    await offRefresh();
     firstSync();
     await Promise.race([pull().then(push), new Promise(r => setTimeout(r, 3000))]);
     setInterval(() => { if (!document.hidden) pull().then(() => { renderList(); renderMarks(); }); }, 60000);

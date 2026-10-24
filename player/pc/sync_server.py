@@ -4,6 +4,7 @@
 Listens on 127.0.0.1:8765 only; Tailscale exposes it to the user's own devices with
     tailscale serve --bg --set-path /sync http://127.0.0.1:8765
 GET  .../sub/<path>.vtt -> subtitle next to a recording (.vtt, or .srt converted), read-only, under ROOT
+GET  .../file/<path>     -> a recording under ROOT (video files only) with CORS, for offline download
 GET  any other path  -> the whole store as JSON
 POST any path  -> body {"marks": {id: {"at": ms, "items": [...]}}, "pos": {id: {"at": ms, ...}}};
                   per id the entry with the larger "at" wins; returns the merged store.
@@ -17,6 +18,7 @@ DIR = os.path.join(os.environ.get("LOCALAPPDATA") or os.path.expanduser("~"), "S
 FILE = os.path.join(DIR, "sync.json")
 LOCK = threading.Lock()
 ORIGIN = "https://yuquanzhao9.github.io"
+VIDEO = {".mp4", ".m4v", ".mov", ".webm", ".mkv"}
 ROOT = os.path.realpath(os.environ.get("STUDIUM_ROOT") or r"F:\Stuttgart uni\Vorlesungen")
 
 
@@ -44,6 +46,7 @@ class H(BaseHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", o if o in (ORIGIN, "http://localhost:8123") else ORIGIN)
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Expose-Headers", "Content-Length")
         self.send_header("Access-Control-Allow-Private-Network", "true")
         self.send_header("Access-Control-Max-Age", "86400")
         self.send_header("Vary", "Origin")
@@ -62,8 +65,31 @@ class H(BaseHTTPRequestHandler):
         path = unquote(urlsplit(self.path).path)
         if "/sub/" in path:
             return self.subtitle(path.split("/sub/", 1)[1])
+        if "/file/" in path:
+            return self.file(path.split("/file/", 1)[1])
         with LOCK:
             self.reply(200, load())
+
+    def file(self, rel):
+        full = os.path.realpath(os.path.join(ROOT, rel))
+        if not full.startswith(ROOT + os.sep) or os.path.splitext(full)[1].lower() not in VIDEO:
+            return self.reply(403, {"error": "not allowed"})
+        try:
+            f = open(full, "rb")
+        except OSError:
+            return self.reply(404, {"error": "no file"})
+        with f:
+            size = os.fstat(f.fileno()).st_size
+            self.send_response(200); self.cors()
+            self.send_header("Content-Type", "video/mp4" if full.lower().endswith((".mp4", ".m4v")) else "application/octet-stream")
+            self.send_header("Content-Length", str(size)); self.end_headers()
+            try:
+                while True:
+                    b = f.read(1 << 20)
+                    if not b: break
+                    self.wfile.write(b)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
 
     def subtitle(self, rel):
         base = os.path.splitext(os.path.realpath(os.path.join(ROOT, rel)))[0]
