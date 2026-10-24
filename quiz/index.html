@@ -1,0 +1,446 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="自测">
+<title>自测题库</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<style>
+:root { --bg: #f6f7fa; --card: #ffffff; --ink: #2f3342; --muted: #7d8294; --line: #e4e7ee;
+  --accent: #6474d2; --accent-soft: #edf0fc; --ok: #2f8a4e; --ok-soft: #e6f4ea; --bad: #d8584f; --bad-soft: #fcebea;
+  --star: #b9800f; --star-soft: #fbf1dc; --on-accent: #ffffff;
+  --c-AM: #3b6fd1; --c-SASP: #2f8a4e; --c-MC: #b9800f; --c-ITCL: #8a55c9; --c-AR: #d8584f; --c-AT2: #0f8a7e;
+  --ui: "IBM Plex Sans", -apple-system, "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111217; --card: #1c1d24; --ink: #e8e9ef; --muted: #8e93a4; --line: #2a2c36;
+  --accent: #8b98e8; --accent-soft: #262a45; --ok: #6cc48d; --ok-soft: #1d3326; --bad: #f07a7d; --bad-soft: #3d2224;
+  --star: #f2c14e; --star-soft: #40330f; --on-accent: #111217;
+  --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-AT2: #4fc4b5; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111217; --card: #1c1d24; --ink: #e8e9ef; --muted: #8e93a4; --line: #2a2c36;
+  --accent: #8b98e8; --accent-soft: #262a45; --ok: #6cc48d; --ok-soft: #1d3326; --bad: #f07a7d; --bad-soft: #3d2224;
+  --star: #f2c14e; --star-soft: #40330f; --on-accent: #111217;
+  --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-AT2: #4fc4b5; color-scheme: dark }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { overflow-x: hidden; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 var(--ui); -webkit-tap-highlight-color: transparent; }
+button { font: inherit; color: inherit; }
+a { color: var(--accent); }
+code { font: 0.92em var(--mono); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+.katex { font-size: 1.06em; }
+.katex-display { margin: 0.5em 0; overflow-x: auto; overflow-y: hidden; }
+
+.lock { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: var(--bg); }
+.lock form { width: min(360px, 100%); background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 26px 22px; display: grid; gap: 14px; }
+.lock h1 { margin: 0; font-size: 20px; }
+.lock p { margin: 0; color: var(--muted); font-size: 13px; }
+.lock input { font: 16px var(--mono); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; }
+.lock .err { color: var(--bad); min-height: 1.2em; font-size: 13px; }
+.btn { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 8px 14px; cursor: pointer; font-size: 14px; }
+.btn:hover { border-color: var(--accent); }
+.btn.pri { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.btn.ghost { background: none; }
+.btn:disabled { opacity: .5; cursor: default; }
+
+.top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 12px; padding: 10px 16px; border-bottom: 1px solid var(--line); background: var(--card); padding-top: max(10px, env(safe-area-inset-top)); }
+.top h1 { font-size: 16px; margin: 0; flex: 1; min-width: 0; }
+.top a { font-size: 13px; text-decoration: none; white-space: nowrap; }
+.sync { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.wrap { max-width: 860px; margin: 0 auto; padding: 18px 16px 60px; }
+
+/* home */
+.intro { color: var(--muted); font-size: 13.5px; margin: 0 0 14px; }
+.quick { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 18px; }
+.course { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--cc); border-radius: 12px; padding: 14px 16px; margin-bottom: 14px; }
+.course h2 { margin: 0; font-size: 17px; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.course h2 .id { color: var(--cc); }
+.course h2 small { font-size: 12.5px; color: var(--muted); font-weight: 400; }
+.stats { font-size: 12.5px; color: var(--muted); margin: 4px 0 10px; }
+.units { display: grid; gap: 6px; }
+.unit { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 4px 12px; align-items: center; text-align: left; width: 100%; border: 1px solid var(--line); background: var(--bg); border-radius: 9px; padding: 9px 12px; cursor: pointer; }
+.unit:hover { border-color: var(--cc); }
+.unit .t { font-size: 14px; }
+.unit .t b { font-weight: 600; margin-right: 6px; }
+.unit .d { font-size: 12px; color: var(--muted); }
+.unit .n { font: 12.5px var(--mono); color: var(--muted); text-align: right; white-space: nowrap; }
+.bar { grid-column: 1 / -1; height: 4px; border-radius: 3px; background: var(--line); overflow: hidden; display: flex; }
+.bar i { display: block; height: 100%; }
+.bar .g { background: var(--ok); } .bar .r { background: var(--bad); }
+.crow { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+.crow .btn { font-size: 13px; padding: 6px 11px; }
+
+/* practice */
+.phead { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 12px; }
+.phead .ttl { flex: 1; min-width: 0; font-weight: 600; }
+.phead .ttl small { display: block; font-weight: 400; color: var(--muted); font-size: 12.5px; }
+.prog { height: 5px; background: var(--line); border-radius: 3px; overflow: hidden; margin-bottom: 14px; }
+.prog i { display: block; height: 100%; background: var(--accent); transition: width .2s; }
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 18px 16px; }
+.tags { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 10px; font-size: 12px; }
+.tag { border-radius: 999px; padding: 2px 9px; background: var(--accent-soft); color: var(--accent); }
+.tag.star { background: var(--star-soft); color: var(--star); }
+.tag.num { background: none; color: var(--muted); font-family: var(--mono); padding-left: 0; }
+.qtext { font-size: 16.5px; line-height: 1.7; margin-bottom: 14px; overflow-wrap: anywhere; }
+.opts { display: grid; gap: 8px; }
+.opt { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; align-items: start; text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
+.opt:hover:not(:disabled) { border-color: var(--accent); }
+.opt .k { font: 600 13px var(--mono); color: var(--muted); padding-top: 2px; }
+.opt.right { border-color: var(--ok); background: var(--ok-soft); }
+.opt.wrong { border-color: var(--bad); background: var(--bad-soft); }
+.opt:disabled { cursor: default; }
+.tf { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.tf .opt { grid-template-columns: 1fr; text-align: center; font-weight: 600; }
+.tf .opt small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.draft { width: 100%; min-height: 70px; resize: vertical; font: 15px/1.5 var(--ui); padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); margin-bottom: 10px; }
+.acts { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; align-items: center; }
+.acts .sp { flex: 1; }
+.fb { margin-top: 14px; border-radius: 10px; padding: 12px 14px; background: var(--bg); border: 1px solid var(--line); }
+.fb .verdict { font-weight: 600; margin-bottom: 6px; }
+.fb .verdict.ok { color: var(--ok); } .fb .verdict.bad { color: var(--bad); }
+.fb .ans { margin-bottom: 8px; overflow-wrap: anywhere; }
+.fb .ans b { color: var(--muted); font-weight: 500; margin-right: 4px; }
+.fb .ex { line-height: 1.75; overflow-wrap: anywhere; }
+.fb .src { margin-top: 10px; font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.self { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+.self .btn.y { border-color: var(--ok); color: var(--ok); } .self .btn.n { border-color: var(--bad); color: var(--bad); }
+.keys { margin-top: 14px; color: var(--muted); font-size: 12px; }
+.keys kbd { font: 11px var(--mono); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; background: var(--card); color: var(--ink); }
+.done { text-align: center; padding: 28px 16px; }
+.done .big { font-size: 34px; font-weight: 600; margin: 6px 0; }
+.empty { color: var(--muted); text-align: center; padding: 30px 0; }
+@media (max-width: 560px) {
+  .wrap { padding: 14px 12px 50px; }
+  .card { padding: 15px 14px 14px; border-radius: 12px; }
+  .qtext { font-size: 16px; }
+  .keys { display: none; }
+  .sync { display: none; }
+}
+</style>
+</head>
+<body>
+
+<div class="lock" id="lock" hidden>
+  <form id="lockf" autocomplete="on">
+    <h1>自测题库</h1>
+    <p>和学习页用同一个密码。在学习页解锁过的设备会自动进来。</p>
+    <input id="pw" type="password" autocomplete="current-password" placeholder="密码" required>
+    <button class="btn pri" type="submit" id="pwb">进入</button>
+    <div class="err" id="pwerr"></div>
+  </form>
+</div>
+
+<header class="top">
+  <h1 id="htitle">自测题库</h1>
+  <span class="sync" id="sync"></span>
+  <a href="../">← 学习页</a>
+</header>
+
+<main class="wrap">
+  <section id="home" hidden></section>
+  <section id="prac" hidden></section>
+</main>
+
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const REPO = "YuquanZhao9/studium-taeglich", DATA_BRANCH = "userdata", QPATH = "quiz.enc";
+  const QAPI = "https://api.github.com/repos/" + REPO + "/contents/" + QPATH;
+  const TYPE = { choice: "单选", tf: "判断", fill: "填空", calc: "计算" };
+  const TFL = { en: ["True", "False"], de: ["Wahr", "Falsch"] };
+
+  // ---------- storage + crypto (same scheme as the study page) ----------
+  const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
+  const b64 = { dec(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; },
+    enc(u) { let s = ""; const c = 0x8000; for (let i = 0; i < u.length; i += c) s += String.fromCharCode.apply(null, u.subarray(i, i + c)); return btoa(s); } };
+  let KEY = null;
+  const meta = () => fetch("../key.json", { cache: "no-store" }).then(r => r.json());
+  async function decryptBytes(u) { return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: u.slice(0, 12) }, KEY, u.slice(12))); }
+  async function encryptBytes(u) { const iv = crypto.getRandomValues(new Uint8Array(12)); const c = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, KEY, u)); const o = new Uint8Array(12 + c.length); o.set(iv); o.set(c, 12); return o; }
+  async function tryKey(k) { const m = await meta(); KEY = k; try { await decryptBytes(b64.dec(m.check)); return true; } catch (e) { KEY = null; return false; } }
+  async function unlockWith(pw) {
+    const m = await meta();
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+    const k = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: b64.dec(m.salt), iterations: m.iter, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+    if (!(await tryKey(k))) return false;
+    ls.set("st-key", b64.enc(new Uint8Array(await crypto.subtle.exportKey("raw", k))));
+    return true;
+  }
+
+  // ---------- text: **bold**, `code`, line breaks, $math$ / $$math$$ ----------
+  const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  function tex(t, display) {
+    try { return katex.renderToString(t, { displayMode: display, throwOnError: false, strict: "ignore" }); }
+    catch (e) { return esc(t); }
+  }
+  function plain(s) {
+    return esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\n/g, "<br>");
+  }
+  function md(s) {
+    if (!s) return "";
+    let out = "", i = 0;
+    const re = /\$\$([\s\S]+?)\$\$|(?<!\\)\$([^$]+?)(?<!\\)\$/g;
+    let m;
+    while ((m = re.exec(s))) {
+      out += plain(s.slice(i, m.index));
+      out += m[1] != null ? tex(m[1], true) : tex(m[2], false);
+      i = re.lastIndex;
+    }
+    return out + plain(s.slice(i));
+  }
+
+  // ---------- progress: localStorage + optional sync to userdata/quiz.enc ----------
+  // R[qid] = { ok: 1|0, t: ms, n: attempts }
+  let R = {};
+  try { R = JSON.parse(ls.get("st-quiz") || "{}").r || {}; } catch (e) { R = {}; }
+  const saveLocal = () => ls.set("st-quiz", JSON.stringify({ v: 1, r: R }));
+  const tok = () => ls.get("st-gh") || "";
+  const hdr = () => { const h = { Accept: "application/vnd.github+json" }; if (tok()) h.Authorization = "Bearer " + tok(); return h; };
+  let sha = null, pushTimer = null, pushing = Promise.resolve();
+  const setSync = t => { $("sync").textContent = t; };
+  function merge(a, b) { const o = Object.assign({}, a); for (const k in b) if (!o[k] || (b[k].t || 0) > (o[k].t || 0)) o[k] = b[k]; return o; }
+  async function pullRemote() {
+    const r = await fetch(QAPI + "?ref=" + DATA_BRANCH + "&t=" + Date.now(), { headers: hdr(), cache: "no-store" });
+    if (r.status === 404) { sha = null; return {}; }
+    if (!r.ok) throw new Error("GitHub " + r.status);
+    const j = await r.json(); sha = j.sha;
+    return JSON.parse(new TextDecoder().decode(await decryptBytes(b64.dec(j.content.replace(/\s/g, ""))))).r || {};
+  }
+  async function syncDown() {
+    try { R = merge(R, await pullRemote()); saveLocal(); setSync(tok() ? "进度已同步" : "进度存在本机"); }
+    catch (e) { setSync("进度只存本机"); }
+  }
+  function schedulePush() {
+    saveLocal();
+    if (!tok()) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => { pushing = pushing.then(push, push); }, 2500);
+  }
+  async function push() {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        R = merge(R, await pullRemote()); saveLocal();
+        const body = { message: "quiz progress", branch: DATA_BRANCH,
+          content: b64.enc(await encryptBytes(new TextEncoder().encode(JSON.stringify({ v: 1, r: R })))) };
+        if (sha) body.sha = sha;
+        const r = await fetch(QAPI, { method: "PUT", headers: Object.assign(hdr(), { "Content-Type": "application/json" }), body: JSON.stringify(body) });
+        if (r.status === 409 || r.status === 422) continue;
+        if (!r.ok) { setSync(r.status === 401 || r.status === 403 ? "令牌无效，进度只存本机" : "同步失败 " + r.status); return; }
+        sha = (await r.json()).content.sha; setSync("进度已同步"); return;
+      } catch (e) { setSync("同步失败，进度先存本机"); }
+    }
+  }
+
+  // ---------- data ----------
+  let BANK = null; const Q = {}; // qid -> {q, unit, course}
+  function stat(qs) {
+    let done = 0, ok = 0;
+    for (const q of qs) { const r = R[q.id]; if (r) { done++; if (r.ok) ok++; } }
+    return { n: qs.length, done, ok, bad: done - ok };
+  }
+  const allQ = c => c.units.flatMap(u => u.questions);
+  const fmtDate = d => { const [, m, dd] = d.split("-"); return +m + "/" + +dd; };
+
+  // ---------- home ----------
+  function home() {
+    S = null; $("prac").hidden = true; $("home").hidden = false; $("htitle").textContent = "自测题库";
+    const el = $("home");
+    const every = BANK.courses.flatMap(allQ), st = stat(every), wrong = every.filter(q => R[q.id] && !R[q.id].ok);
+    let h = '<p class="intro">只出已经讲过的内容。★ 是必会或高频的点。选择题和判断题自动判分；填空和计算题先自己写，再看答案，自己判对错。共 ' +
+      every.length + " 题，已做 " + st.done + " 题，答对 " + st.ok + " 题。</p>";
+    h += '<div class="quick"><button class="btn pri" data-go="mix">随机 10 题</button>' +
+      '<button class="btn" data-go="wrong"' + (wrong.length ? "" : " disabled") + ">错题重做（" + wrong.length + "）</button>" +
+      '<button class="btn" data-go="star">全部 ★ 题</button></div>';
+    for (const c of BANK.courses) {
+      const cs = stat(allQ(c)), stars = allQ(c).filter(q => q.star).length;
+      h += '<div class="course" style="--cc: var(--c-' + c.id + ')"><h2><span class="id">' + esc(c.id) + "</span>" + esc(c.name) +
+        "<small>" + (c.lang === "de" ? "题目德语" : "题目英语") + " · 解析中文</small></h2>";
+      h += '<div class="stats">' + cs.n + " 题 · ★ " + stars + " · 已做 " + cs.done + (cs.done ? " · 答对 " + Math.round(100 * cs.ok / cs.done) + "%" : "") + "</div>";
+      h += '<div class="units">';
+      for (const u of c.units) {
+        const us = stat(u.questions);
+        h += '<button class="unit" data-unit="' + esc(u.id) + '"><span class="t"><b>' + fmtDate(u.date) + "</b>" + esc(u.title) +
+          '</span><span class="n">' + us.done + "/" + us.n + (us.bad ? " · ✗" + us.bad : "") + '</span><span class="d">' + esc(u.sources) + "</span><span></span>" +
+          '<span class="bar"><i class="g" style="width:' + (100 * us.ok / us.n) + '%"></i><i class="r" style="width:' + (100 * us.bad / us.n) + '%"></i></span></button>';
+      }
+      h += "</div>";
+      const cw = allQ(c).filter(q => R[q.id] && !R[q.id].ok).length;
+      h += '<div class="crow"><button class="btn" data-course="' + c.id + '" data-mode="all">整门课</button>' +
+        '<button class="btn" data-course="' + c.id + '" data-mode="star">只做 ★</button>' +
+        '<button class="btn" data-course="' + c.id + '" data-mode="todo">没做过的</button>' +
+        '<button class="btn" data-course="' + c.id + '" data-mode="wrong"' + (cw ? "" : " disabled") + ">错题（" + cw + "）</button></div></div>";
+    }
+    el.innerHTML = h;
+    el.querySelectorAll("[data-unit]").forEach(b => b.onclick = () => {
+      const u = BANK.courses.flatMap(c => c.units).find(x => x.id === b.dataset.unit);
+      const c = BANK.courses.find(x => x.units.includes(u));
+      start(u.questions, c.id + " · " + fmtDate(u.date) + " " + u.title, u.sources);
+    });
+    el.querySelectorAll("[data-course]").forEach(b => b.onclick = () => {
+      const c = BANK.courses.find(x => x.id === b.dataset.course), m = b.dataset.mode;
+      let qs = allQ(c), label = { all: "整门课", star: "只做 ★", todo: "没做过的", wrong: "错题" }[m];
+      if (m === "star") qs = qs.filter(q => q.star);
+      if (m === "todo") qs = qs.filter(q => !R[q.id]);
+      if (m === "wrong") qs = qs.filter(q => R[q.id] && !R[q.id].ok);
+      start(qs, c.id + " · " + label, c.name);
+    });
+    el.querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
+      const g = b.dataset.go;
+      if (g === "mix") start(shuffle(every.slice()).slice(0, 10), "随机 10 题", "六门课混合");
+      if (g === "wrong") start(wrong, "错题重做", "所有做错过的题");
+      if (g === "star") start(every.filter(q => q.star), "全部 ★ 题", "必会和高频的点");
+    });
+    window.scrollTo(0, 0);
+  }
+  function shuffle(a) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+
+  // ---------- practice ----------
+  let S = null; // { qs, i, title, sub, got: {qid: ok}, answered }
+  function start(qs, title, sub) {
+    if (!qs.length) return;
+    S = { qs: qs.slice(), i: 0, title, sub, got: {} };
+    $("home").hidden = true; $("prac").hidden = false;
+    show();
+  }
+  function record(q, ok) {
+    const r = R[q.id] || { n: 0 };
+    R[q.id] = { ok: ok ? 1 : 0, t: Date.now(), n: (r.n || 0) + 1 };
+    S.got[q.id] = ok;
+    schedulePush();
+  }
+  function show() {
+    const el = $("prac");
+    if (S.i >= S.qs.length) return finish();
+    const q = S.qs[S.i], info = Q[q.id], lang = info.course.lang;
+    let h = '<div class="phead"><button class="btn ghost" id="back">← 返回</button><div class="ttl">' + esc(S.title) + "<small>" + esc(S.sub) + "</small></div></div>";
+    h += '<div class="prog"><i style="width:' + (100 * S.i / S.qs.length) + '%"></i></div>';
+    h += '<div class="card" style="--cc: var(--c-' + info.course.id + ')">';
+    h += '<div class="tags"><span class="tag num">' + (S.i + 1) + " / " + S.qs.length + '</span><span class="tag" style="color: var(--cc)">' + esc(info.course.id) + " " + fmtDate(info.unit.date) +
+      '</span><span class="tag">' + TYPE[q.type] + "</span>" + (q.star ? '<span class="tag star">★ ' + md(q.why || "必会") + "</span>" : "") +
+      (R[q.id] ? '<span class="tag num">上次' + (R[q.id].ok ? "做对" : "做错") + "</span>" : "") + "</div>";
+    h += '<div class="qtext">' + md(q.q) + "</div>";
+    if (q.type === "choice") {
+      h += '<div class="opts">' + q.opts.map((o, k) => '<button class="opt" data-k="' + String.fromCharCode(65 + k) + '"><span class="k">' + String.fromCharCode(65 + k) + '</span><span>' + md(o) + "</span></button>").join("") + "</div>";
+    } else if (q.type === "tf") {
+      const L = TFL[lang] || TFL.en;
+      h += '<div class="tf"><button class="opt" data-k="T">' + L[0] + '<small>对</small></button><button class="opt" data-k="F">' + L[1] + "<small>错</small></button></div>";
+    } else {
+      h += '<textarea class="draft" id="draft" placeholder="先在纸上或这里写出你的答案（不保存），再看答案"></textarea>';
+      h += '<div class="acts"><button class="btn pri" id="reveal">看答案</button></div>';
+    }
+    h += '<div id="fbx"></div>';
+    h += '<div class="acts"><button class="btn" id="prev"' + (S.i ? "" : " disabled") + '>上一题</button><span class="sp"></span><button class="btn" id="skip">跳过</button></div>';
+    h += '<div class="keys"><span><kbd>A</kbd>–<kbd>D</kbd> 或 <kbd>1</kbd>–<kbd>4</kbd> 选择</span> · <span><kbd>T</kbd>/<kbd>F</kbd> 判断</span> · <span><kbd>Enter</kbd> 看答案 / 下一题</span> · <span><kbd>Y</kbd>/<kbd>N</kbd> 自评</span></div>';
+    h += "</div>";
+    el.innerHTML = h;
+    S.answered = false;
+    $("back").onclick = home;
+    $("prev").onclick = () => { if (S.i) { S.i--; show(); } };
+    $("skip").onclick = next;
+    el.querySelectorAll(".opt").forEach(b => b.onclick = () => pick(b.dataset.k));
+    if ($("reveal")) $("reveal").onclick = reveal;
+    window.scrollTo(0, 0);
+  }
+  function feedback(q, verdict) {
+    let h = '<div class="fb">';
+    if (verdict != null) h += '<div class="verdict ' + (verdict ? "ok" : "bad") + '">' + (verdict ? "✓ 答对了" : "✗ 答错了") + "</div>";
+    let ans = q.a;
+    if (q.type === "choice") ans = q.a + "　" + q.opts[q.a.charCodeAt(0) - 65];
+    if (q.type === "tf") ans = q.a === "T" ? "对（" + (TFL[Q[q.id].course.lang] || TFL.en)[0] + "）" : "错（" + (TFL[Q[q.id].course.lang] || TFL.en)[1] + "）";
+    h += '<div class="ans"><b>答案</b>' + md(ans) + "</div>";
+    h += '<div class="ex">' + md(q.ex) + "</div>";
+    h += '<div class="src">出处：' + md(q.src) + "</div>";
+    if (verdict == null) h += '<div class="self"><button class="btn y" id="sy">✓ 我做对了</button><button class="btn n" id="sn">✗ 没做对</button></div>';
+    else h += '<div class="acts"><span class="sp"></span><button class="btn pri" id="nx">' + (S.i + 1 < S.qs.length ? "下一题" : "看结果") + "</button></div>";
+    return h + "</div>";
+  }
+  function pick(k) {
+    if (S.answered) return;
+    const q = S.qs[S.i]; S.answered = true;
+    const ok = k === q.a;
+    document.querySelectorAll(".opt").forEach(b => { b.disabled = true; if (b.dataset.k === q.a) b.classList.add("right"); });
+    const mine = [...document.querySelectorAll(".opt")].find(b => b.dataset.k === k);
+    if (!ok && mine) mine.classList.add("wrong");
+    record(q, ok);
+    $("fbx").innerHTML = feedback(q, ok);
+    $("nx").onclick = next;
+    $("nx").focus({ preventScroll: true });
+  }
+  function reveal() {
+    if (S.answered) return;
+    S.answered = true;
+    const q = S.qs[S.i];
+    $("reveal").parentNode.hidden = true;
+    $("fbx").innerHTML = feedback(q, null);
+    const done = ok => {
+      record(q, ok);
+      $("fbx").querySelector(".self").outerHTML = '<div class="acts"><span class="verdict ' + (ok ? "ok" : "bad") + '">' + (ok ? "✓ 记为做对" : "✗ 记为做错") + '</span><span class="sp"></span><button class="btn pri" id="nx">' + (S.i + 1 < S.qs.length ? "下一题" : "看结果") + "</button></div>";
+      $("nx").onclick = next; $("nx").focus({ preventScroll: true });
+    };
+    $("sy").onclick = () => done(true); $("sn").onclick = () => done(false);
+    $("fbx").scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }
+  function next() { S.i++; show(); }
+  function finish() {
+    const ids = Object.keys(S.got), ok = ids.filter(k => S.got[k]).length, wrongQs = S.qs.filter(q => S.got[q.id] === false);
+    $("prac").innerHTML = '<div class="phead"><button class="btn ghost" id="back">← 返回</button><div class="ttl">' + esc(S.title) + "<small>" + esc(S.sub) + "</small></div></div>" +
+      '<div class="card done"><div>这一组做完了</div><div class="big">' + ok + " / " + ids.length + "</div><div class=\"stats\">" +
+      (ids.length < S.qs.length ? "跳过 " + (S.qs.length - ids.length) + " 题 · " : "") + (ids.length ? "答对 " + Math.round(100 * ok / ids.length) + "%" : "") + "</div>" +
+      '<div class="acts" style="justify-content:center"><button class="btn pri" id="again"' + (wrongQs.length ? "" : " disabled") + ">重做这组的错题（" + wrongQs.length + "）</button><button class=\"btn\" id=\"home2\">回到目录</button></div></div>";
+    $("back").onclick = home; $("home2").onclick = home;
+    $("again").onclick = () => start(wrongQs, S.title + " · 错题", S.sub);
+  }
+  document.addEventListener("keydown", e => {
+    if (!S || $("prac").hidden || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.target.tagName === "TEXTAREA" || e.target.tagName === "INPUT") { if (e.key === "Enter" && (e.ctrlKey || e.metaKey) && $("reveal")) reveal(); return; }
+    const q = S.qs[S.i]; if (!q) return;
+    const k = e.key.toLowerCase();
+    if (!S.answered) {
+      if (q.type === "choice") { const i = "abcd".indexOf(k) >= 0 ? "abcd".indexOf(k) : "1234".indexOf(k); if (i >= 0 && i < q.opts.length) { e.preventDefault(); pick(String.fromCharCode(65 + i)); } }
+      if (q.type === "tf" && (k === "t" || k === "f")) { e.preventDefault(); pick(k.toUpperCase()); }
+      if ((q.type === "fill" || q.type === "calc") && k === "enter") { e.preventDefault(); reveal(); }
+    } else {
+      if ($("sy") && k === "y") { e.preventDefault(); $("sy").click(); }
+      else if ($("sn") && k === "n") { e.preventDefault(); $("sn").click(); }
+      else if ($("nx") && k === "enter") { e.preventDefault(); next(); }
+    }
+  });
+
+  // ---------- boot ----------
+  async function boot() {
+    $("lock").hidden = true;
+    const r = await fetch("bank.json.enc", { cache: "no-store" });
+    BANK = JSON.parse(new TextDecoder().decode(await decryptBytes(new Uint8Array(await r.arrayBuffer()))));
+    for (const c of BANK.courses) for (const u of c.units) for (const q of u.questions) Q[q.id] = { course: c, unit: u };
+    home();
+    syncDown().then(() => { if (!S) home(); });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden && !S) syncDown().then(() => { if (!S) home(); }); });
+  }
+
+  $("lockf").addEventListener("submit", async ev => {
+    ev.preventDefault(); $("pwerr").textContent = ""; $("pwb").disabled = true; $("pwb").textContent = "解锁中……";
+    let ok = false; try { ok = await unlockWith($("pw").value); } catch (e) { $("pwerr").textContent = "出错了：" + e.message; }
+    $("pwb").disabled = false; $("pwb").textContent = "进入";
+    if (ok) boot().catch(e => { $("pwerr").textContent = "题库没载入：" + e.message; $("lock").hidden = false; });
+    else if (!$("pwerr").textContent) $("pwerr").textContent = "密码不对";
+  });
+  window.addEventListener("load", async () => {
+    const saved = ls.get("st-key");
+    if (saved) {
+      try { if (await tryKey(await crypto.subtle.importKey("raw", b64.dec(saved), "AES-GCM", true, ["encrypt", "decrypt"]))) return boot(); } catch (e) {}
+      ls.set("st-key", null);
+    }
+    $("lock").hidden = false; $("pw").focus();
+  });
+})();
+</script>
+</body>
+</html>
