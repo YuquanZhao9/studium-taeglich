@@ -679,10 +679,16 @@ a { color: var(--accent); }
     const url = isText ? URL.createObjectURL(new Blob([src], { type: "text/vtt" })) : src;
     if (isText) S.subUrl = url;
     const t = document.createElement("track"); t.kind = "subtitles"; t.label = "字幕"; t.srclang = "zh"; t.src = url; t.default = true; v.appendChild(t);
-    t.addEventListener("load", () => { const tt = v.textTracks[0]; tt.mode = S.subOn ? "showing" : "hidden"; [...(tt.cues || [])].forEach(c => { c.snapToLines = true; c.line = -3; }); });
-    $("bsub").hidden = false; $("bsub").classList.toggle("on", S.subOn);
+    // burned-in subtitles (item.burned): keep the side track as an option, off by default
+    const show = S.subOn && !(S.item && S.item.burned);
+    t.addEventListener("load", () => { const tt = v.textTracks[0]; tt.mode = show ? "showing" : "hidden"; [...(tt.cues || [])].forEach(c => { c.snapToLines = true; c.line = -3; }); });
+    $("bsub").hidden = false; $("bsub").classList.toggle("on", show);
   }
-  $("bsub").onclick = () => { S.subOn = !S.subOn; [...v.textTracks].forEach(t => t.mode = S.subOn ? "showing" : "hidden"); $("bsub").classList.toggle("on", S.subOn); center(S.subOn ? "字幕开" : "字幕关"); };
+  $("bsub").onclick = () => {
+    const on = !$("bsub").classList.contains("on");
+    if (!(S.item && S.item.burned)) S.subOn = on;
+    [...v.textTracks].forEach(t => t.mode = on ? "showing" : "hidden"); $("bsub").classList.toggle("on", on); center(on ? "字幕开" : "字幕关");
+  };
   $("fsub").onchange = async e => { const f = e.target.files[0]; if (!f) return; const s = await f.text(); addTrack(/^WEBVTT/.test(s) ? s : srt2vtt(s), true); e.target.value = ""; center("字幕已加载"); };
   $("fvid").onchange = e => {
     const f = e.target.files[0], tag = e.target.dataset.for; e.target.dataset.for = ""; e.target.value = "";
