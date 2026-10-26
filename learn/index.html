@@ -1,0 +1,490 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="原理">
+<title>原理随身学</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<style>
+:root { --bg: #f6f7fa; --card: #ffffff; --ink: #2f3342; --muted: #7d8294; --line: #e4e7ee;
+  --accent: #6474d2; --accent-soft: #edf0fc; --ok: #2f8a4e; --ok-soft: #e6f4ea; --bad: #c9612a; --bad-soft: #fcefe6;
+  --star: #b9800f; --star-soft: #fbf1dc; --on-accent: #ffffff;
+  --c-AM: #3b6fd1; --c-SASP: #2f8a4e; --c-MC: #b9800f; --c-ITCL: #8a55c9; --c-AR: #d8584f; --c-AT2: #0f8a7e;
+  --ui: "IBM Plex Sans", -apple-system, "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace; --fs: 16.5px; color-scheme: light; }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111217; --card: #1c1d24; --ink: #e8e9ef; --muted: #8e93a4; --line: #2a2c36;
+  --accent: #8b98e8; --accent-soft: #262a45; --ok: #6cc48d; --ok-soft: #1d3326; --bad: #f0a070; --bad-soft: #3d2a1c;
+  --star: #f2c14e; --star-soft: #40330f; --on-accent: #111217;
+  --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-AT2: #4fc4b5; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111217; --card: #1c1d24; --ink: #e8e9ef; --muted: #8e93a4; --line: #2a2c36;
+  --accent: #8b98e8; --accent-soft: #262a45; --ok: #6cc48d; --ok-soft: #1d3326; --bad: #f0a070; --bad-soft: #3d2a1c;
+  --star: #f2c14e; --star-soft: #40330f; --on-accent: #111217;
+  --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-AT2: #4fc4b5; color-scheme: dark }
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { overflow-x: hidden; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.6 var(--ui); -webkit-tap-highlight-color: transparent; }
+button, input { font: inherit; color: inherit; }
+a { color: var(--accent); }
+code { font: 0.9em var(--mono); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+.katex { font-size: 1.05em; }
+.katex-display { margin: 0.6em 0; overflow-x: auto; overflow-y: hidden; padding: 2px 0; }
+
+.lock { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; padding: 16px; background: var(--bg); }
+.lock form { width: min(360px, 100%); background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 26px 22px; display: grid; gap: 14px; }
+.lock h1 { margin: 0; font-size: 20px; }
+.lock p { margin: 0; color: var(--muted); font-size: 13px; }
+.lock input { font: 16px var(--mono); padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); width: 100%; }
+.lock .err { color: var(--bad); min-height: 1.2em; font-size: 13px; }
+.btn { border: 1px solid var(--line); background: var(--card); border-radius: 8px; padding: 7px 13px; cursor: pointer; font-size: 14px; text-decoration: none; color: var(--ink); display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--accent); }
+.btn.pri { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
+.btn.ghost { background: none; }
+.btn:disabled { opacity: .45; cursor: default; }
+
+.top { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; gap: 10px; padding: 9px 16px; border-bottom: 1px solid var(--line); background: var(--card); padding-top: max(9px, env(safe-area-inset-top)); }
+.top h1 { font-size: 16px; margin: 0; white-space: nowrap; cursor: pointer; }
+.top .sp { flex: 1; }
+.top a, .top button.lnk { font-size: 13px; text-decoration: none; white-space: nowrap; background: none; border: 0; color: var(--accent); cursor: pointer; padding: 4px 2px; }
+.fsz { display: flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; }
+.fsz button { border: 0; background: none; padding: 2px 9px; cursor: pointer; font-size: 13px; color: var(--muted); }
+.fsz button + button { border-left: 1px solid var(--line); }
+.sync { font-size: 12px; color: var(--muted); white-space: nowrap; }
+.wrap { max-width: 760px; margin: 0 auto; padding: 18px 16px 90px; }
+
+/* home */
+.search { display: flex; gap: 8px; margin-bottom: 16px; }
+.search input { flex: 1; min-width: 0; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--card); font-size: 15px; }
+.hero { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 18px; }
+.pick { background: var(--card); border: 1px solid var(--line); border-top: 3px solid var(--cc, var(--accent)); border-radius: 12px; padding: 13px 15px; cursor: pointer; text-align: left; display: block; width: 100%; }
+.pick:hover { border-color: var(--cc, var(--accent)); }
+.pick .k { font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.pick .t { font-weight: 600; font-size: 15.5px; margin: 4px 0 3px; }
+.pick .s { font-size: 13.5px; color: var(--muted); line-height: 1.55; }
+.intro { color: var(--muted); font-size: 13.5px; margin: 0 0 16px; line-height: 1.7; }
+.statline { font-size: 13px; color: var(--muted); margin: -6px 0 14px; }
+.course { background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--cc); border-radius: 12px; margin-bottom: 12px; overflow: hidden; }
+.course > summary { list-style: none; cursor: pointer; padding: 13px 16px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; }
+.course > summary::-webkit-details-marker { display: none; }
+.course h2 { margin: 0; font-size: 16.5px; display: flex; gap: 9px; align-items: baseline; flex-wrap: wrap; }
+.course h2 .id { color: var(--cc); }
+.course .orig { grid-column: 1; font-size: 12.5px; color: var(--muted); }
+.course .cnt { grid-row: 1 / span 2; grid-column: 2; font: 12.5px var(--mono); color: var(--muted); text-align: right; }
+.course .cbar { grid-column: 1 / -1; height: 4px; border-radius: 3px; background: var(--line); overflow: hidden; display: flex; margin-top: 6px; }
+.cbar i { display: block; height: 100%; } .cbar .g { background: var(--ok); } .cbar .r { background: var(--bad); }
+.chap { padding: 4px 16px 12px; }
+.chap h3 { margin: 10px 0 2px; font-size: 14px; color: var(--cc); }
+.chap .cd { font-size: 12.5px; color: var(--muted); margin-bottom: 6px; }
+.row { display: grid; grid-template-columns: 14px minmax(0, 1fr); gap: 2px 8px; text-align: left; width: 100%; border: 0; border-top: 1px solid var(--line); background: none; padding: 8px 2px; cursor: pointer; }
+.row:hover .rt { color: var(--accent); }
+.row .dot { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid var(--line); margin-top: 7px; }
+.row .dot.ok { background: var(--ok); border-color: var(--ok); } .row .dot.bad { background: var(--bad); border-color: var(--bad); } .row .dot.seen { border-color: var(--muted); }
+.row .rt { font-size: 14.5px; font-weight: 500; }
+.row .rt .st { color: var(--star); font-size: 12px; margin-left: 4px; }
+.row .rs { grid-column: 2; font-size: 13px; color: var(--muted); line-height: 1.5; }
+.legend { font-size: 12px; color: var(--muted); display: flex; gap: 14px; flex-wrap: wrap; margin: 4px 0 14px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; border: 1.5px solid var(--line); }
+.legend i.ok { background: var(--ok); border-color: var(--ok); } .legend i.bad { background: var(--bad); border-color: var(--bad); } .legend i.seen { border-color: var(--muted); }
+.res h2 { font-size: 15px; margin: 0 0 8px; }
+.res .row .cid { font: 12px var(--mono); color: var(--cc); margin-right: 6px; }
+mark { background: var(--star-soft); color: inherit; border-radius: 3px; padding: 0 1px; }
+
+/* card */
+.crumb { font-size: 12.5px; color: var(--muted); margin-bottom: 6px; display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.crumb b { color: var(--cc); font-weight: 600; }
+.crumb button { border: 0; background: none; color: var(--muted); padding: 0; cursor: pointer; font-size: inherit; text-decoration: underline; text-decoration-color: var(--line); }
+article.card { background: var(--card); border: 1px solid var(--line); border-top: 4px solid var(--cc); border-radius: 14px; padding: 18px 20px 20px; }
+article.card h1 { font-size: 21px; margin: 0 0 10px; line-height: 1.35; }
+article.card h1 .st { font-size: 13px; color: var(--star); background: var(--star-soft); border-radius: 999px; padding: 2px 9px; margin-left: 8px; vertical-align: 3px; font-weight: 500; white-space: nowrap; }
+.sum { background: var(--accent-soft); border-radius: 10px; padding: 10px 14px; font-size: calc(var(--fs) * .98); line-height: 1.7; margin-bottom: 14px; }
+.sum::before { content: "一句话　"; font-weight: 600; color: var(--accent); }
+.md { font-size: var(--fs); line-height: 1.85; overflow-wrap: anywhere; }
+.md h3 { font-size: calc(var(--fs) * 1.0); margin: 22px 0 6px; color: var(--cc); display: flex; align-items: center; gap: 8px; }
+.md h3::before { content: ""; width: 4px; height: 1em; border-radius: 2px; background: var(--cc); }
+.md p { margin: 8px 0; }
+.md ul, .md ol { margin: 8px 0; padding-left: 1.4em; }
+.md li { margin: 3px 0; }
+.md .tip, .md .warn { border-radius: 10px; padding: 9px 13px; margin: 12px 0; font-size: calc(var(--fs) * .95); }
+.md .tip { background: var(--ok-soft); border-left: 3px solid var(--ok); }
+.md .warn { background: var(--bad-soft); border-left: 3px solid var(--bad); }
+.md .warn::before { content: "容易错　"; font-weight: 600; color: var(--bad); }
+.md .tip p, .md .warn p { margin: 4px 0; }
+.md .tbl { overflow-x: auto; margin: 12px 0; }
+.md table { border-collapse: collapse; font-size: calc(var(--fs) * .9); min-width: 100%; }
+.md th, .md td { border: 1px solid var(--line); padding: 6px 9px; text-align: left; vertical-align: top; line-height: 1.55; }
+.md th { background: var(--bg); font-weight: 600; }
+.md a.xref { text-decoration: none; border-bottom: 1px dashed var(--accent); }
+.md a.xref small { font: 11px var(--mono); color: var(--muted); margin-left: 2px; }
+.meta { margin-top: 20px; border-top: 1px solid var(--line); padding-top: 12px; display: grid; gap: 10px; font-size: 13px; color: var(--muted); }
+.meta b { color: var(--ink); font-weight: 600; margin-right: 6px; }
+.terms { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.terms span { background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 2px 8px; font-size: 12.5px; color: var(--ink); }
+.terms span i { font-style: normal; color: var(--muted); margin-left: 5px; }
+.rel { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.rel a { font-size: 13px; border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; text-decoration: none; color: var(--ink); }
+.rel a b { color: var(--cc); font: 11px var(--mono); margin-right: 4px; }
+.mark { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 16px; align-items: center; }
+.mark .btn.ok.on { background: var(--ok); border-color: var(--ok); color: var(--on-accent); }
+.mark .btn.bad.on { background: var(--bad); border-color: var(--bad); color: var(--on-accent); }
+.mark .hint { font-size: 12.5px; color: var(--muted); }
+.pager { position: fixed; left: 0; right: 0; bottom: 0; z-index: 9; background: var(--card); border-top: 1px solid var(--line); padding: 8px 16px; padding-bottom: max(8px, env(safe-area-inset-bottom)); }
+.pager .in { max-width: 760px; margin: 0 auto; display: grid; grid-template-columns: 1fr auto 1fr; gap: 8px; align-items: center; }
+.pager .btn { font-size: 13px; padding: 7px 10px; min-width: 0; }
+.pager .btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pager .nx { justify-self: end; }
+.pager .pos { font: 12px var(--mono); color: var(--muted); text-align: center; }
+@media (max-width: 600px) {
+  .wrap { padding: 14px 12px 90px; }
+  .hero { grid-template-columns: 1fr; }
+  article.card { padding: 15px 15px 18px; border-radius: 12px; }
+  article.card h1 { font-size: 19.5px; }
+  .sync { display: none; }
+  .top { gap: 8px; padding-left: 12px; padding-right: 12px; }
+}
+</style>
+</head>
+<body>
+
+<div class="lock" id="lock" hidden>
+  <form id="lockf" autocomplete="on">
+    <h1>原理随身学</h1>
+    <p>和学习页用同一个密码。在学习页解锁过的设备会自动进来。</p>
+    <input id="pw" type="password" autocomplete="current-password" placeholder="密码" required>
+    <button class="btn pri" type="submit" id="pwb">进入</button>
+    <div class="err" id="pwerr"></div>
+  </form>
+</div>
+
+<header class="top">
+  <h1 id="hhome">原理随身学</h1>
+  <span class="sp"></span>
+  <span class="sync" id="sync"></span>
+  <div class="fsz" role="group" aria-label="字号"><button id="fsm" aria-label="字小一点">A−</button><button id="fsp" aria-label="字大一点">A+</button></div>
+  <a href="../quiz/">自测</a>
+  <a href="../#go">每日学习</a>
+  <a href="../">入口</a>
+</header>
+
+<main class="wrap" id="main"></main>
+<nav class="pager" id="pager" hidden></nav>
+
+<script>
+(() => {
+  "use strict";
+  const $ = id => document.getElementById(id);
+  const REPO = "YuquanZhao9/studium-taeglich", DATA_BRANCH = "userdata", PPATH = "learn.enc";
+  const PAPI = "https://api.github.com/repos/" + REPO + "/contents/" + PPATH;
+
+  // ---------- storage + crypto (same scheme as the study page) ----------
+  const ls = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } },
+    set(k, v) { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
+  const b64 = { dec(s) { const b = atob(s), u = new Uint8Array(b.length); for (let i = 0; i < b.length; i++) u[i] = b.charCodeAt(i); return u; },
+    enc(u) { let s = ""; const c = 0x8000; for (let i = 0; i < u.length; i += c) s += String.fromCharCode.apply(null, u.subarray(i, i + c)); return btoa(s); } };
+  let KEY = null;
+  const meta = () => fetch("../key.json", { cache: "no-store" }).then(r => r.json());
+  async function decryptBytes(u) { return new Uint8Array(await crypto.subtle.decrypt({ name: "AES-GCM", iv: u.slice(0, 12) }, KEY, u.slice(12))); }
+  async function encryptBytes(u) { const iv = crypto.getRandomValues(new Uint8Array(12)); const c = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv }, KEY, u)); const o = new Uint8Array(12 + c.length); o.set(iv); o.set(c, 12); return o; }
+  async function tryKey(k) { const m = await meta(); KEY = k; try { await decryptBytes(b64.dec(m.check)); return true; } catch (e) { KEY = null; return false; } }
+  async function unlockWith(pw) {
+    const m = await meta();
+    const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+    const k = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: b64.dec(m.salt), iterations: m.iter, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, true, ["encrypt", "decrypt"]);
+    if (!(await tryKey(k))) return false;
+    ls.set("st-key", b64.enc(new Uint8Array(await crypto.subtle.exportKey("raw", k))));
+    return true;
+  }
+
+  // ---------- font size ----------
+  const FS = [14.5, 15.5, 16.5, 17.5, 19, 20.5];
+  let fsi = +(ls.get("lr-fs") || 2); if (!(fsi >= 0 && fsi < FS.length)) fsi = 2;
+  const applyFs = () => { document.documentElement.style.setProperty("--fs", FS[fsi] + "px"); ls.set("lr-fs", String(fsi)); };
+  applyFs();
+  $("fsm").onclick = () => { if (fsi > 0) { fsi--; applyFs(); } };
+  $("fsp").onclick = () => { if (fsi < FS.length - 1) { fsi++; applyFs(); } };
+
+  // ---------- Markdown subset with KaTeX ----------
+  const esc = s => s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  function tex(t, display) {
+    try { return katex.renderToString(t, { displayMode: display, throwOnError: false, strict: "ignore" }); }
+    catch (e) { return esc(t); }
+  }
+  function inline(s) {
+    const math = [];
+    s = s.replace(/(?<!\\)\$([^$\n]+?)(?<!\\)\$/g, (_, m) => { math.push(tex(m, false)); return "\u0000" + (math.length - 1) + "\u0000"; });
+    s = esc(s).replace(/\\\$/g, "$")
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
+      .replace(/\[\[([^\]]+)\]\]/g, (_, id) => {
+        const c = CARD[id];
+        return c ? '<a class="xref" href="#/c/' + id + '">' + esc(c.card.title) + "<small>" + esc(c.course.id) + "</small></a>" : esc(id);
+      });
+    return s.replace(/\u0000(\d+)\u0000/g, (_, i) => math[+i]);
+  }
+  function md(src) {
+    const disp = [];
+    src = src.replace(/\$\$([\s\S]+?)\$\$/g, (_, m) => { disp.push(tex(m.trim(), true)); return "\u0001" + (disp.length - 1) + "\u0001"; });
+    const lines = src.split("\n");
+    let out = "", i = 0;
+    const isTable = l => /^\s*\|.*\|\s*$/.test(l);
+    const block = (prefix, test) => { const buf = []; while (i < lines.length && test(lines[i])) { buf.push(lines[i].slice(prefix(lines[i]))); i++; } return buf; };
+    while (i < lines.length) {
+      const l = lines[i];
+      if (!l.trim()) { i++; continue; }
+      if (l.startsWith("### ")) { out += "<h3>" + inline(l.slice(4)) + "</h3>"; i++; continue; }
+      if (l.startsWith("!> ") || l === "!>") {
+        const b = block(x => x.startsWith("!> ") ? 3 : 2, x => x.startsWith("!>"));
+        out += '<div class="warn">' + paras(b) + "</div>"; continue;
+      }
+      if (l.startsWith("> ") || l === ">") {
+        const b = block(x => x.startsWith("> ") ? 2 : 1, x => x.startsWith(">"));
+        out += '<div class="tip">' + paras(b) + "</div>"; continue;
+      }
+      if (/^\s*[-*] /.test(l)) {
+        const items = []; while (i < lines.length && (/^\s*[-*] /.test(lines[i]) || (/^\s{2,}\S/.test(lines[i]) && items.length))) {
+          if (/^\s*[-*] /.test(lines[i])) items.push(lines[i].replace(/^\s*[-*] /, "")); else items[items.length - 1] += " " + lines[i].trim(); i++; }
+        out += "<ul>" + items.map(x => "<li>" + inline(x) + "</li>").join("") + "</ul>"; continue;
+      }
+      if (/^\s*\d+[.)] /.test(l)) {
+        const items = []; while (i < lines.length && (/^\s*\d+[.)] /.test(lines[i]) || (/^\s{2,}\S/.test(lines[i]) && items.length))) {
+          if (/^\s*\d+[.)] /.test(lines[i])) items.push(lines[i].replace(/^\s*\d+[.)] /, "")); else items[items.length - 1] += " " + lines[i].trim(); i++; }
+        out += "<ol>" + items.map(x => "<li>" + inline(x) + "</li>").join("") + "</ol>"; continue;
+      }
+      if (isTable(l)) {
+        const rows = []; while (i < lines.length && isTable(lines[i])) { rows.push(lines[i]); i++; }
+        const cells = r => r.trim().replace(/^\||\|$/g, "").split(/(?<!\\)\|/).map(x => x.trim());
+        let h = '<div class="tbl"><table>', body = rows;
+        if (rows.length > 1 && /^[\s|:-]+$/.test(rows[1])) { h += "<thead><tr>" + cells(rows[0]).map(c => "<th>" + inline(c) + "</th>").join("") + "</tr></thead>"; body = rows.slice(2); }
+        h += "<tbody>" + body.map(r => "<tr>" + cells(r).map(c => "<td>" + inline(c) + "</td>").join("") + "</tr>").join("") + "</tbody></table></div>";
+        out += h; continue;
+      }
+      const buf = []; while (i < lines.length && lines[i].trim() && !/^(### |> |>$|!>|\s*[-*] |\s*\d+[.)] )/.test(lines[i]) && !isTable(lines[i])) { buf.push(lines[i]); i++; }
+      out += paras([buf.join("\n")]);
+    }
+    return out.replace(/\u0001(\d+)\u0001/g, (_, k) => disp[+k]);
+  }
+  function paras(buf) {
+    return buf.join("\n").split(/\n\s*\n/).filter(x => x.trim()).map(p => {
+      const t = p.trim();
+      if (/^\u0001\d+\u0001$/.test(t)) return t;
+      return "<p>" + inline(t).replace(/\n/g, "<br>") + "</p>";
+    }).join("");
+  }
+
+  // ---------- progress: P[id] = { s: 0 seen | 1 understood | 2 unclear, t: ms } ----------
+  let P = {};
+  try { P = JSON.parse(ls.get("st-learn") || "{}").p || {}; } catch (e) { P = {}; }
+  const saveLocal = () => ls.set("st-learn", JSON.stringify({ v: 1, p: P }));
+  const tok = () => ls.get("st-gh") || "";
+  const hdr = () => { const h = { Accept: "application/vnd.github+json" }; if (tok()) h.Authorization = "Bearer " + tok(); return h; };
+  let sha = null, pushTimer = null, pushing = Promise.resolve();
+  const setSync = t => { $("sync").textContent = t; };
+  function merge(a, b) { const o = Object.assign({}, a); for (const k in b) if (!o[k] || (b[k].t || 0) > (o[k].t || 0)) o[k] = b[k]; return o; }
+  async function pullRemote() {
+    const r = await fetch(PAPI + "?ref=" + DATA_BRANCH + "&t=" + Date.now(), { headers: hdr(), cache: "no-store" });
+    if (r.status === 404) { sha = null; return {}; }
+    if (!r.ok) throw new Error("GitHub " + r.status);
+    const j = await r.json(); sha = j.sha;
+    return JSON.parse(new TextDecoder().decode(await decryptBytes(b64.dec(j.content.replace(/\s/g, ""))))).p || {};
+  }
+  async function syncDown() {
+    if (!tok()) { setSync("进度存在本机"); return; }
+    try { P = merge(P, await pullRemote()); saveLocal(); setSync("进度已同步"); }
+    catch (e) { setSync("进度只存本机"); }
+  }
+  function schedulePush() {
+    saveLocal();
+    if (!tok()) return;
+    clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => { pushing = pushing.then(push, push); }, 2500);
+  }
+  async function push() {
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        P = merge(P, await pullRemote()); saveLocal();
+        const body = { message: "learn progress", branch: DATA_BRANCH,
+          content: b64.enc(await encryptBytes(new TextEncoder().encode(JSON.stringify({ v: 1, p: P })))) };
+        if (sha) body.sha = sha;
+        const r = await fetch(PAPI, { method: "PUT", headers: Object.assign(hdr(), { "Content-Type": "application/json" }), body: JSON.stringify(body) });
+        if (r.status === 409 || r.status === 422) continue;
+        if (!r.ok) { setSync(r.status === 401 || r.status === 403 ? "令牌无效，进度只存本机" : "同步失败 " + r.status); return; }
+        sha = (await r.json()).content.sha; setSync("进度已同步"); return;
+      } catch (e) { setSync("同步失败，进度先存本机"); }
+    }
+  }
+  function setState(id, s) { const old = P[id] || {}; P[id] = { s, t: Date.now(), v: old.v || 0 }; schedulePush(); }
+  function seen(id) { const old = P[id]; if (!old) { P[id] = { s: 0, t: Date.now() }; schedulePush(); } ls.set("lr-last", id); }
+  const dotCls = id => { const p = P[id]; return !p ? "" : p.s === 1 ? "ok" : p.s === 2 ? "bad" : "seen"; };
+
+  // ---------- data ----------
+  let BOOK = null; const CARD = {}; const ORDERED = []; const BACK = {};
+  const courseCards = co => co.chapters.flatMap(ch => ch.cards);
+  function index() {
+    for (const co of BOOK.courses) for (const ch of co.chapters) for (const c of ch.cards) {
+      CARD[c.id] = { card: c, chapter: ch, course: co, i: ORDERED.length }; ORDERED.push(c.id);
+    }
+    for (const id of ORDERED) for (const m of CARD[id].card.body.matchAll(/\[\[([^\]]+)\]\]/g)) {
+      if (CARD[m[1]] && m[1] !== id) (BACK[m[1]] = BACK[m[1]] || new Set()).add(id);
+    }
+  }
+  function stat(ids) { let ok = 0, bad = 0, seenN = 0; for (const id of ids) { const p = P[id]; if (p) { seenN++; if (p.s === 1) ok++; if (p.s === 2) bad++; } } return { n: ids.length, ok, bad, seen: seenN }; }
+  function dailyPick() {
+    // same card all day: prefer ★ cards not yet understood, then any not understood
+    const d = new Date(), seed = d.getFullYear() * 400 + d.getMonth() * 32 + d.getDate();
+    let pool = ORDERED.filter(id => CARD[id].card.star && !(P[id] && P[id].s === 1));
+    if (!pool.length) pool = ORDERED.filter(id => !(P[id] && P[id].s === 1));
+    if (!pool.length) pool = ORDERED;
+    return pool[(seed * 2654435761 >>> 0) % pool.length];
+  }
+
+  // ---------- views ----------
+  const main = $("main"), pager = $("pager");
+  function pickHtml(id, label) {
+    const x = CARD[id]; if (!x) return "";
+    return '<button class="pick" style="--cc: var(--c-' + x.course.id + ')" data-open="' + id + '"><div class="k"><span>' + label + "</span><span>" + esc(x.course.id) + (x.card.star ? " ★" : "") +
+      '</span></div><div class="t">' + esc(x.card.title) + '</div><div class="s">' + inline(x.card.sum) + "</div></button>";
+  }
+  function rowHtml(id, withCourse, hl) {
+    const x = CARD[id], c = x.card;
+    const title = hl ? highlight(c.title, hl) : esc(c.title);
+    return '<button class="row" data-open="' + id + '" style="--cc: var(--c-' + x.course.id + ')"><span class="dot ' + dotCls(id) + '"></span><span class="rt">' +
+      (withCourse ? '<span class="cid">' + esc(x.course.id) + "</span>" : "") + title + (c.star ? '<span class="st">★</span>' : "") + '</span><span class="rs">' + inline(c.sum) + "</span></button>";
+  }
+  function home() {
+    pager.hidden = true; document.title = "原理随身学";
+    const all = stat(ORDERED), last = ls.get("lr-last"), unclear = ORDERED.filter(id => P[id] && P[id].s === 2);
+    let h = '<p class="intro">六门课讲过的内容，按主题拆成一张张卡片：先一句话说清是什么，再讲直觉、公式、例子和容易错的地方。卡片之间互相链接，跨课的联系也连上了。随手翻一张就能学。</p>';
+    h += '<form class="search" id="sf"><input id="q" type="search" placeholder="搜卡片：熵、SVD、Fisher、HIL、手眼标定……" autocomplete="off"><button class="btn" type="submit">搜</button></form>';
+    h += '<div class="hero">' + pickHtml(dailyPick(), "今天翻这张") + (last && CARD[last] ? pickHtml(last, "接着读") : pickHtml(ORDERED[0], "从头读")) + "</div>";
+    h += '<div class="statline">共 ' + all.n + " 张卡片 · 看过 " + all.seen + " · 懂了 " + all.ok + (all.bad ? " · 还没懂 " + all.bad : "") + "</div>";
+    if (unclear.length) {
+      h += '<details class="course" style="--cc: var(--bad)" open><summary><h2>还没懂的卡片</h2><span class="cnt">' + unclear.length + '</span><span class="orig">标了“还没懂”的都在这里，回头再看</span></summary><div class="chap">' +
+        unclear.map(id => rowHtml(id, true)).join("") + "</div></details>";
+    }
+    const openSet = new Set(JSON.parse(ls.get("lr-open") || "[]"));
+    for (const co of BOOK.courses) {
+      const ids = courseCards(co).map(c => c.id), s = stat(ids);
+      h += '<details class="course" data-cid="' + co.id + '" style="--cc: var(--c-' + co.id + ')"' + (openSet.has(co.id) ? " open" : "") + '><summary><h2><span class="id">' + esc(co.id) + "</span>" + esc(co.name) +
+        '</h2><span class="cnt">' + s.ok + "/" + s.n + '</span><span class="orig">' + esc(co.orig) + '</span><span class="cbar"><i class="g" style="width:' + (100 * s.ok / s.n) + '%"></i><i class="r" style="width:' + (100 * s.bad / s.n) + '%"></i></span></summary>';
+      for (const ch of co.chapters) {
+        h += '<div class="chap"><h3>' + esc(ch.title) + '</h3><div class="cd">' + inline(ch.desc) + "</div>" + ch.cards.map(c => rowHtml(c.id)).join("") + "</div>";
+      }
+      h += "</details>";
+    }
+    h += '<div class="legend"><span><i></i>没看过</span><span><i class="seen"></i>看过</span><span><i class="ok"></i>懂了</span><span><i class="bad"></i>还没懂</span><span>★ 必会</span></div>';
+    main.innerHTML = h;
+    wire();
+    main.querySelectorAll("details[data-cid]").forEach(d => d.addEventListener("toggle", () => {
+      const s = new Set(JSON.parse(ls.get("lr-open") || "[]")); d.open ? s.add(d.dataset.cid) : s.delete(d.dataset.cid); ls.set("lr-open", JSON.stringify([...s]));
+    }));
+    $("sf").onsubmit = e => { e.preventDefault(); const q = $("q").value.trim(); if (q) location.hash = "#/s/" + encodeURIComponent(q); };
+  }
+  function highlight(text, q) {
+    const i = text.toLowerCase().indexOf(q.toLowerCase());
+    if (i < 0) return esc(text);
+    return esc(text.slice(0, i)) + "<mark>" + esc(text.slice(i, i + q.length)) + "</mark>" + esc(text.slice(i + q.length));
+  }
+  function search(q) {
+    pager.hidden = true; document.title = "搜：" + q;
+    const ql = q.toLowerCase(), hits = [];
+    for (const id of ORDERED) {
+      const c = CARD[id].card;
+      let score = 0;
+      if (c.title.toLowerCase().includes(ql)) score += 10;
+      if (c.sum.toLowerCase().includes(ql)) score += 4;
+      if (c.terms.some(t => (t[0] + " " + t[1]).toLowerCase().includes(ql))) score += 6;
+      if (c.body.toLowerCase().includes(ql)) score += 1;
+      if (id.toLowerCase() === ql || CARD[id].course.id.toLowerCase() === ql) score += 2;
+      if (score) hits.push([score, id]);
+    }
+    hits.sort((a, b) => b[0] - a[0] || CARD[a[1]].i - CARD[b[1]].i);
+    let h = '<form class="search" id="sf"><input id="q" type="search" value="' + esc(q) + '" autocomplete="off"><button class="btn" type="submit">搜</button></form>';
+    h += '<div class="res"><h2>' + (hits.length ? "找到 " + hits.length + " 张" : "没有找到包含“" + esc(q) + "”的卡片") + "</h2>" + hits.map(x => rowHtml(x[1], true, q)).join("") + "</div>";
+    h += '<p style="margin-top:16px"><button class="btn ghost" data-home>← 回到目录</button></p>';
+    main.innerHTML = h; wire();
+    $("sf").onsubmit = e => { e.preventDefault(); const v = $("q").value.trim(); if (v) location.hash = "#/s/" + encodeURIComponent(v); };
+  }
+  function card(id) {
+    const x = CARD[id]; if (!x) return home();
+    const c = x.card, co = x.course, ids = courseCards(co).map(k => k.id), pos = ids.indexOf(id);
+    seen(id); document.title = c.title + " · " + co.id;
+    let h = '<div class="crumb" style="--cc: var(--c-' + co.id + ')"><button data-home>目录</button>›<b>' + esc(co.id) + "</b>" + esc(co.name) + "›<span>" + esc(x.chapter.title) + "</span></div>";
+    h += '<article class="card" style="--cc: var(--c-' + co.id + ')"><h1>' + esc(c.title) + (c.star ? '<span class="st">★ 必会</span>' : "") + "</h1>";
+    h += '<div class="sum">' + inline(c.sum) + "</div>";
+    h += '<div class="md">' + md(c.body) + "</div>";
+    h += '<div class="meta">';
+    if (c.terms.length) h += "<div><b>原文术语</b><div class=\"terms\">" + c.terms.map(t => "<span>" + inline(t[0]) + (t[1] ? "<i>" + inline(t[1]) + "</i>" : "") + "</span>").join("") + "</div></div>";
+    const out = [...new Set([...c.body.matchAll(/\[\[([^\]]+)\]\]/g)].map(m => m[1]))].filter(k => CARD[k] && k !== id);
+    const back = [...(BACK[id] || [])].filter(k => !out.includes(k));
+    const rel = out.concat(back);
+    if (rel.length) h += "<div><b>相关卡片</b><div class=\"rel\">" + rel.map(k => '<a href="#/c/' + k + '" style="--cc: var(--c-' + CARD[k].course.id + ')"><b>' + esc(CARD[k].course.id) + "</b>" + esc(CARD[k].card.title) + "</a>").join("") + "</div></div>";
+    h += "<div><b>出处</b>" + c.src.map(inline).join("；") + "</div></div>";
+    const s = P[id] && P[id].s;
+    h += '<div class="mark"><button class="btn ok' + (s === 1 ? " on" : "") + '" id="mok">✓ 懂了</button><button class="btn bad' + (s === 2 ? " on" : "") + '" id="mbad">? 还没懂</button><span class="hint">' +
+      (s === 2 ? "已放进首页“还没懂的卡片”" : s === 1 ? "" : "标一下，首页能看到进度") + "</span></div>";
+    h += "</article>";
+    main.innerHTML = h; wire();
+    $("mok").onclick = () => { setState(id, P[id] && P[id].s === 1 ? 0 : 1); card(id); };
+    $("mbad").onclick = () => { setState(id, P[id] && P[id].s === 2 ? 0 : 2); card(id); };
+    const prev = ids[pos - 1], next = ids[pos + 1];
+    pager.hidden = false;
+    pager.innerHTML = '<div class="in"><a class="btn"' + (prev ? ' href="#/c/' + prev + '"' : ' aria-disabled="true" style="opacity:.4;pointer-events:none"') + "><span>← " + (prev ? esc(CARD[prev].card.title) : "已是第一张") + '</span></a><span class="pos">' + (pos + 1) + "/" + ids.length +
+      '</span><a class="btn nx"' + (next ? ' href="#/c/' + next + '"' : ' href="#/"') + "><span>" + (next ? esc(CARD[next].card.title) + " →" : "这门课读完了 · 回目录") + "</span></a></div>";
+    window.scrollTo(0, 0);
+  }
+  function wire() {
+    main.querySelectorAll("[data-open]").forEach(b => b.onclick = () => { location.hash = "#/c/" + b.dataset.open; });
+    main.querySelectorAll("[data-home]").forEach(b => b.onclick = () => { location.hash = "#/"; });
+  }
+  function route() {
+    if (!BOOK) return;
+    const h = location.hash.replace(/^#\/?/, "");
+    if (h.startsWith("c/")) return card(decodeURIComponent(h.slice(2)));
+    if (h.startsWith("s/")) return search(decodeURIComponent(h.slice(2)));
+    home(); window.scrollTo(0, 0);
+  }
+  window.addEventListener("hashchange", route);
+  $("hhome").onclick = () => { location.hash = "#/"; };
+  document.addEventListener("keydown", e => {
+    if (e.target.tagName === "INPUT" || e.metaKey || e.ctrlKey || e.altKey || pager.hidden) return;
+    const a = pager.querySelectorAll("a[href]");
+    if (e.key === "ArrowLeft" && a[0] && a[0].getAttribute("href") && a.length === 2) location.hash = a[0].getAttribute("href");
+    if (e.key === "ArrowRight" && a.length) location.hash = a[a.length - 1].getAttribute("href");
+  });
+
+  // ---------- boot ----------
+  async function boot() {
+    $("lock").hidden = true;
+    const r = await fetch("book.json.enc", { cache: "no-store" });
+    BOOK = JSON.parse(new TextDecoder().decode(await decryptBytes(new Uint8Array(await r.arrayBuffer()))));
+    index();
+    route();
+    syncDown().then(() => { if (!location.hash.startsWith("#/c/")) route(); });
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) syncDown(); });
+  }
+  $("lockf").addEventListener("submit", async ev => {
+    ev.preventDefault(); $("pwerr").textContent = ""; $("pwb").disabled = true; $("pwb").textContent = "解锁中……";
+    let ok = false; try { ok = await unlockWith($("pw").value); } catch (e) { $("pwerr").textContent = "出错了：" + e.message; }
+    $("pwb").disabled = false; $("pwb").textContent = "进入";
+    if (ok) boot().catch(e => { $("pwerr").textContent = "内容没载入：" + e.message; $("lock").hidden = false; });
+    else if (!$("pwerr").textContent) $("pwerr").textContent = "密码不对";
+  });
+  window.addEventListener("load", async () => {
+    const saved = ls.get("st-key");
+    if (saved) {
+      try { if (await tryKey(await crypto.subtle.importKey("raw", b64.dec(saved), "AES-GCM", true, ["encrypt", "decrypt"]))) return boot(); } catch (e) {}
+      ls.set("st-key", null);
+    }
+    $("lock").hidden = false; $("pw").focus();
+  });
+})();
+</script>
+</body>
+</html>

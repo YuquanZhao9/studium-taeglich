@@ -129,6 +129,7 @@ button:focus-visible, select:focus-visible, textarea:focus-visible, summary:focu
 .tool { border: 1px solid var(--line); background: none; border-radius: 6px; padding: 2px 10px; font-size: 12px; cursor: pointer; }
 .toplink { text-decoration: none; color: var(--ink); align-self: flex-start; padding: 4px 10px; font-size: 13px; }
 .mtop .toplink { margin-left: auto; }
+.mtop .toplink + .toplink { margin-left: 0; }
 .tool.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .md { font-family: var(--read); font-size: 15.5px; line-height: 1.7; max-width: 68ch; overflow-wrap: anywhere; min-width: 0; }
 .md h4 { font-family: var(--ui); font-size: 14px; margin: 12px 0 2px; color: var(--cc, var(--accent)); }
@@ -297,6 +298,36 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 </style>
 </head>
 <body>
+<div class="hub" id="hub" hidden>
+  <div class="hubin">
+    <h1>Studium täglich</h1>
+    <p>今天想做什么？</p>
+    <a class="hubt" href="#go" id="hubday" style="--hc:#6474d2"><b>📅 每日学习</b><span>课件、中文对照、老师带读、笔记</span></a>
+    <a class="hubt" href="learn/" style="--hc:#2f8a4e"><b>💡 原理随身学</b><span>六门课按主题讲原理，随手翻一张</span></a>
+    <a class="hubt" href="quiz/" style="--hc:#b9800f"><b>✏️ 自测题库</b><span>只出讲过的内容，错题重做</span></a>
+    <a class="hubt" href="player/" style="--hc:#d8584f"><b>▶️ 看课播放器</b><span>录播倍速、标记、续播</span></a>
+  </div>
+</div>
+<style>
+.hub { position: fixed; inset: 0; z-index: 60; overflow-y: auto; background: var(--bg); display: grid; place-items: center; padding: 16px; }
+.hubin { width: min(440px, 100%); display: grid; gap: 10px; }
+.hubin h1 { margin: 0; font-size: 22px; }
+.hubin p { margin: 0 0 6px; color: var(--muted); }
+.hubt { display: grid; gap: 2px; text-decoration: none; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-left: 4px solid var(--hc); border-radius: 12px; padding: 14px 16px; }
+.hubt:hover { border-color: var(--hc); }
+.hubt b { font-size: 16.5px; }
+.hubt span { font-size: 13px; color: var(--muted); }
+</style>
+<script>
+(() => {
+  // bare address (no #d… from the email) -> let the user pick a section first
+  const hub = document.getElementById("hub");
+  if (!location.hash) hub.hidden = false;
+  document.getElementById("hubday").addEventListener("click", e => {
+    e.preventDefault(); hub.hidden = true; history.replaceState(null, "", "#go");
+  });
+})();
+</script>
 <div class="lock" id="lock">
   <form id="lockf" autocomplete="on">
     <h1>Studium täglich</h1>
@@ -310,6 +341,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 <div class="app">
   <nav class="rail" aria-label="日期">
     <div class="brand">Studium täglich<small>Uni Stuttgart · WS 2026/27</small></div>
+    <a class="tool toplink" href="learn/">原理随身学 →</a>
     <a class="tool toplink" href="quiz/">自测题库 →</a>
     <div class="quick"><div class="qh"><p class="label">快速笔记 <span id="qdate"></span></p><span class="qst" id="qst"></span></div><textarea id="qta" placeholder="随手记：疑问、要点、待办……自动保存"></textarea><button class="tool" type="button" id="qpage">＋插入当前页码</button></div>
     <div><p class="label">日期</p><div class="dates" id="dates"></div></div>
@@ -322,7 +354,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   </nav>
 
   <main class="main">
-    <div class="mtop"><div class="brand">Studium täglich</div><a class="tool toplink" href="quiz/">自测</a><select id="dsel" aria-label="选择日期"></select></div>
+    <div class="mtop"><div class="brand">Studium täglich</div><a class="tool toplink" href="learn/">原理</a><a class="tool toplink" href="quiz/">自测</a><select id="dsel" aria-label="选择日期"></select></div>
     <div class="navs" id="navs"><div class="seg" id="seg" role="group" aria-label="当天或次日"></div><nav class="cjump" id="cjump" aria-label="跳到某门课"></nav></div>
     <div class="dayhead" id="dayhead"></div>
     <div class="starbar" id="starbar" hidden></div>
