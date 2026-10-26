@@ -216,6 +216,8 @@ article.card h1 .st { font-size: 13px; color: var(--star); background: var(--sta
     try { return katex.renderToString(t, { displayMode: display, throwOnError: false, strict: "ignore" }); }
     catch (e) { return esc(t); }
   }
+  const tt = t => inline(t);
+  const plainTitle = t => t.replace(/\$([^$]+)\$/g, (_, m) => m.replace(/\\[a-zA-Z]+/g, " ").replace(/[{}]/g, "").replace(/\s+/g, " ").trim());
   function inline(s) {
     const math = [];
     s = s.replace(/(?<!\\)\$([^$\n]+?)(?<!\\)\$/g, (_, m) => { math.push(tex(m, false)); return "\u0000" + (math.length - 1) + "\u0000"; });
@@ -224,7 +226,7 @@ article.card h1 .st { font-size: 13px; color: var(--star); background: var(--sta
       .replace(/\*\*(.+?)\*\*/g, "<b>$1</b>")
       .replace(/\[\[([^\]]+)\]\]/g, (_, id) => {
         const c = CARD[id];
-        return c ? '<a class="xref" href="#/c/' + id + '">' + esc(c.card.title) + "<small>" + esc(c.course.id) + "</small></a>" : esc(id);
+        return c ? '<a class="xref" href="#/c/' + id + '">' + tt(c.card.title) + "<small>" + esc(c.course.id) + "</small></a>" : esc(id);
       });
     return s.replace(/\u0000(\d+)\u0000/g, (_, i) => math[+i]);
   }
@@ -349,11 +351,11 @@ article.card h1 .st { font-size: 13px; color: var(--star); background: var(--sta
   function pickHtml(id, label) {
     const x = CARD[id]; if (!x) return "";
     return '<button class="pick" style="--cc: var(--c-' + x.course.id + ')" data-open="' + id + '"><div class="k"><span>' + label + "</span><span>" + esc(x.course.id) + (x.card.star ? " ★" : "") +
-      '</span></div><div class="t">' + esc(x.card.title) + '</div><div class="s">' + inline(x.card.sum) + "</div></button>";
+      '</span></div><div class="t">' + tt(x.card.title) + '</div><div class="s">' + inline(x.card.sum) + "</div></button>";
   }
   function rowHtml(id, withCourse, hl) {
     const x = CARD[id], c = x.card;
-    const title = hl ? highlight(c.title, hl) : esc(c.title);
+    const title = hl && !c.title.includes("$") ? highlight(c.title, hl) : tt(c.title);
     return '<button class="row" data-open="' + id + '" style="--cc: var(--c-' + x.course.id + ')"><span class="dot ' + dotCls(id) + '"></span><span class="rt">' +
       (withCourse ? '<span class="cid">' + esc(x.course.id) + "</span>" : "") + title + (c.star ? '<span class="st">★</span>' : "") + '</span><span class="rs">' + inline(c.sum) + "</span></button>";
   }
@@ -414,9 +416,9 @@ article.card h1 .st { font-size: 13px; color: var(--star); background: var(--sta
   function card(id) {
     const x = CARD[id]; if (!x) return home();
     const c = x.card, co = x.course, ids = courseCards(co).map(k => k.id), pos = ids.indexOf(id);
-    seen(id); document.title = c.title + " · " + co.id;
+    seen(id); document.title = plainTitle(c.title) + " · " + co.id;
     let h = '<div class="crumb" style="--cc: var(--c-' + co.id + ')"><button data-home>目录</button>›<b>' + esc(co.id) + "</b>" + esc(co.name) + "›<span>" + esc(x.chapter.title) + "</span></div>";
-    h += '<article class="card" style="--cc: var(--c-' + co.id + ')"><h1>' + esc(c.title) + (c.star ? '<span class="st">★ 必会</span>' : "") + "</h1>";
+    h += '<article class="card" style="--cc: var(--c-' + co.id + ')"><h1>' + tt(c.title) + (c.star ? '<span class="st">★ 必会</span>' : "") + "</h1>";
     h += '<div class="sum">' + inline(c.sum) + "</div>";
     h += '<div class="md">' + md(c.body) + "</div>";
     h += '<div class="meta">';
@@ -424,7 +426,7 @@ article.card h1 .st { font-size: 13px; color: var(--star); background: var(--sta
     const out = [...new Set([...c.body.matchAll(/\[\[([^\]]+)\]\]/g)].map(m => m[1]))].filter(k => CARD[k] && k !== id);
     const back = [...(BACK[id] || [])].filter(k => !out.includes(k));
     const rel = out.concat(back);
-    if (rel.length) h += "<div><b>相关卡片</b><div class=\"rel\">" + rel.map(k => '<a href="#/c/' + k + '" style="--cc: var(--c-' + CARD[k].course.id + ')"><b>' + esc(CARD[k].course.id) + "</b>" + esc(CARD[k].card.title) + "</a>").join("") + "</div></div>";
+    if (rel.length) h += "<div><b>相关卡片</b><div class=\"rel\">" + rel.map(k => '<a href="#/c/' + k + '" style="--cc: var(--c-' + CARD[k].course.id + ')"><b>' + esc(CARD[k].course.id) + "</b>" + tt(CARD[k].card.title) + "</a>").join("") + "</div></div>";
     h += "<div><b>出处</b>" + c.src.map(inline).join("；") + "</div></div>";
     const s = P[id] && P[id].s;
     h += '<div class="mark"><button class="btn ok' + (s === 1 ? " on" : "") + '" id="mok">✓ 懂了</button><button class="btn bad' + (s === 2 ? " on" : "") + '" id="mbad">? 还没懂</button><span class="hint">' +
@@ -435,8 +437,8 @@ article.card h1 .st { font-size: 13px; color: var(--star); background: var(--sta
     $("mbad").onclick = () => { setState(id, P[id] && P[id].s === 2 ? 0 : 2); card(id); };
     const prev = ids[pos - 1], next = ids[pos + 1];
     pager.hidden = false;
-    pager.innerHTML = '<div class="in"><a class="btn"' + (prev ? ' href="#/c/' + prev + '"' : ' aria-disabled="true" style="opacity:.4;pointer-events:none"') + "><span>← " + (prev ? esc(CARD[prev].card.title) : "已是第一张") + '</span></a><span class="pos">' + (pos + 1) + "/" + ids.length +
-      '</span><a class="btn nx"' + (next ? ' href="#/c/' + next + '"' : ' href="#/"') + "><span>" + (next ? esc(CARD[next].card.title) + " →" : "这门课读完了 · 回目录") + "</span></a></div>";
+    pager.innerHTML = '<div class="in"><a class="btn"' + (prev ? ' href="#/c/' + prev + '"' : ' aria-disabled="true" style="opacity:.4;pointer-events:none"') + "><span>← " + (prev ? tt(CARD[prev].card.title) : "已是第一张") + '</span></a><span class="pos">' + (pos + 1) + "/" + ids.length +
+      '</span><a class="btn nx"' + (next ? ' href="#/c/' + next + '"' : ' href="#/"') + "><span>" + (next ? tt(CARD[next].card.title) + " →" : "这门课读完了 · 回目录") + "</span></a></div>";
     window.scrollTo(0, 0);
   }
   function wire() {
