@@ -91,7 +91,8 @@ a { color: var(--accent); }
 .player video::cue { font-family: var(--ui); background: rgba(0,0,0,.55); font-size: clamp(14px, 2.4vw, 26px); }
 .player .empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: #c9ccd6; font-size: 14px; padding: 20px; }
 .player .hit { position: absolute; inset: 0; -webkit-touch-callout: none; }
-.player .big { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(0,0,0,.45); display: grid; place-items: center; pointer-events: none; transition: opacity .2s; }
+.player .big { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(0,0,0,.45); display: grid; place-items: center; cursor: pointer; transition: opacity .2s; }
+.player.idle .big.pz { opacity: 0; pointer-events: none; }
 .player .spin { position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; margin: -19px 0 0 -19px; border: 3px solid rgba(255,255,255,.25); border-top-color: #fff; border-radius: 50%; animation: sp 0.9s linear infinite; pointer-events: none; }
 @keyframes sp { to { transform: rotate(360deg); } }
 .player .toast { position: absolute; z-index: 3; left: 14px; bottom: 64px; background: rgba(20,20,24,.82); border-radius: 6px; padding: 7px 12px; font-size: 13px; pointer-events: auto; display: flex; gap: 10px; align-items: center; max-width: calc(100% - 28px); }
@@ -203,7 +204,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
       <div class="empty" id="empty">从右边（手机：下面）选一节课开始看</div>
       <div class="hit" id="hit"></div>
       <div class="ttl" id="ttl"></div>
-      <div class="big" id="big" hidden><svg viewBox="0 0 24 24" width="30" height="30" fill="#fff"><path d="M8 5.5v13l11-6.5z"/></svg></div>
+      <div class="big" id="big" hidden><svg viewBox="0 0 24 24" width="30" height="30" fill="#fff"><path id="ibig" d="M8 5.5v13l11-6.5z"/></svg></div>
       <div class="spin" id="spin" hidden></div>
       <div class="ripple l" id="rl" hidden></div>
       <div class="ripple r" id="rr" hidden></div>
@@ -499,7 +500,14 @@ html.noscroll, html.noscroll body { overflow: hidden; }
 
   // ---------- play state ----------
   const toggle = () => { if (!v.src) return; v.paused ? v.play().catch(() => {}) : v.pause(); };
-  function paintPlay() { $("iplay").setAttribute("d", v.paused ? "M8 5.5v13l11-6.5z" : "M7 5h3.5v14H7zm6.5 0H17v14h-3.5z"); $("big").hidden = !v.paused || !v.src; poke(); }
+  // phones get a tappable play/pause button in the middle (shown with the controls); desktop only shows ▶ while paused
+  const coarse = matchMedia("(pointer: coarse)").matches;
+  function paintPlay() {
+    const d = v.paused ? "M8 5.5v13l11-6.5z" : "M7 5h3.5v14H7zm6.5 0H17v14h-3.5z";
+    $("iplay").setAttribute("d", d); $("ibig").setAttribute("d", d);
+    $("big").hidden = !v.src || (!v.paused && !coarse); $("big").classList.toggle("pz", !v.paused); poke();
+  }
+  $("big").addEventListener("click", e => { e.stopPropagation(); toggle(); });
   v.addEventListener("play", paintPlay); v.addEventListener("pause", paintPlay);
   v.addEventListener("waiting", () => $("spin").hidden = false);
   ["playing", "canplay", "seeked", "pause"].forEach(e => v.addEventListener(e, () => $("spin").hidden = true));
@@ -673,7 +681,6 @@ html.noscroll, html.noscroll body { overflow: hidden; }
   const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
   const canFs = !!(pl.requestFullscreen || pl.webkitRequestFullscreen);
   // iPhone has no element fullscreen (only the system player, where our gestures don't work), so fake it
-  const touchy = matchMedia("(pointer: coarse)").matches;
   function fitRot() { pl.classList.toggle("rot", pl.classList.contains("pfs") && innerHeight > innerWidth); }
   function pseudoFs(on) {
     // FLIP: remember where the player is, switch, then animate from there (grow + turn, like Bilibili)
@@ -694,7 +701,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
   function toggleFs() {
     if (pl.classList.contains("pfs")) { pseudoFs(false); return; }
     if (fsEl()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
-    if (!canFs && touchy) { if (pl.classList.contains("wfs")) toggleWfs(); pseudoFs(true); return; }
+    if (!canFs && coarse) { if (pl.classList.contains("wfs")) toggleWfs(); pseudoFs(true); return; }
     if (canFs) {
       const p = (pl.requestFullscreen || pl.webkitRequestFullscreen).call(pl);
       if (p && p.then) p.then(() => { if (v.videoWidth > v.videoHeight && screen.orientation && screen.orientation.lock) screen.orientation.lock("landscape").catch(() => {}); }).catch(() => {});
