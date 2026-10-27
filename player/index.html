@@ -131,6 +131,15 @@ a { color: var(--accent); }
 .marks .syncst:empty { display: none; }
 .marks .none { padding: 10px 14px; color: var(--muted); font-size: 13px; }
 .prog .tip { position: absolute; bottom: 20px; transform: translateX(-50%); background: rgba(20,20,24,.85); border-radius: 4px; padding: 2px 6px; font: 12px var(--mono); pointer-events: none; white-space: nowrap; }
+/* touch: thicker bar, always-visible bigger knob, taller grab area */
+@media (pointer: coarse) {
+  .prog { height: 32px; margin: -10px 0 -6px; }
+  .prog .rail, .prog:hover .rail { top: 13px; height: 6px; border-radius: 3px; }
+  .prog.drag .rail { top: 12px; height: 8px; }
+  .prog .knob, .prog:hover .knob { width: 18px; height: 18px; margin: -9px 0 0 -9px; transform: scale(1); }
+  .prog.drag .knob { transform: scale(1.35); }
+  .prog .tip { bottom: 30px; }
+}
 .ctr { display: flex; align-items: center; gap: 4px; height: 38px; }
 .ctr .sp { flex: 1; }
 .ib { background: none; border: none; color: #fff; height: 36px; min-width: 36px; padding: 0 6px; display: inline-grid; place-items: center; cursor: pointer; border-radius: 6px; opacity: .92; font-size: 13.5px; }
