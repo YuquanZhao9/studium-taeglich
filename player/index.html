@@ -151,8 +151,8 @@ a { color: var(--accent); }
 .player:fullscreen { border-radius: 0; aspect-ratio: auto; }
 .player:-webkit-full-screen { border-radius: 0; width: 100%; height: 100%; }
 /* phone fullscreen without the system player (iPhone): fills the screen, turned sideways while the phone is held upright */
-.player.pfs { position: fixed; z-index: 50; left: 0; top: 0; width: 100vw; height: 100vh; height: 100dvh; border-radius: 0; aspect-ratio: auto; }
-.player.pfs.rot { left: 50%; top: 50%; width: 100vh; width: 100dvh; height: 100vw; transform: translate(-50%, -50%) rotate(90deg); }
+.player.pfs { position: fixed; z-index: 50; left: 50%; top: 50%; width: 100vw; height: 100vh; height: 100dvh; transform: translate(-50%, -50%); border-radius: 0; aspect-ratio: auto; }
+.player.pfs.rot { width: 100vh; width: 100dvh; height: 100vw; transform: translate(-50%, -50%) rotate(90deg); }
 .player.pfs .hit { touch-action: none; }
 .player.pfs.rot .bar { padding-left: max(12px, env(safe-area-inset-top)); padding-right: max(12px, env(safe-area-inset-bottom)); }
 .player.pfs:not(.rot) .bar { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
@@ -618,9 +618,9 @@ html.noscroll, html.noscroll body { overflow: hidden; }
   }
   function ripple(side, s) { const r = $(side < 0 ? "rl" : "rr"); r.textContent = s; r.hidden = false; clearTimeout(r._t); r._t = setTimeout(() => r.hidden = true, 500); }
 
-  // ---------- fast-forward hold (3x while held) ----------
+  // ---------- fast-forward hold (2x while held) ----------
   let holding = false, holdRate = 1;
-  function holdOn() { if (holding || !v.src) return; holding = true; holdRate = v.playbackRate; v.playbackRate = 3; if (v.paused) v.play().catch(() => {}); const c = $("center"); c.textContent = "▶▶ 3x 倍速中"; c.hidden = false; clearTimeout(centerT); }
+  function holdOn() { if (holding || !v.src) return; holding = true; holdRate = v.playbackRate; v.playbackRate = 2; if (v.paused) v.play().catch(() => {}); const c = $("center"); c.textContent = "▶▶ 2x 倍速中"; c.hidden = false; clearTimeout(centerT); }
   function holdOff() { if (!holding) return; holding = false; v.playbackRate = holdRate; $("center").hidden = true; }
 
   // ---------- pointer on video: mouse click / touch gestures ----------
@@ -629,6 +629,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
   hit.addEventListener("pointerdown", e => {
     const p = loc(e, hit); sx = p.x; sy = p.y; st = v.currentTime; swiping = false; moved = false;
     if (e.pointerType !== "mouse") { lpT = setTimeout(() => { if (!moved) holdOn(); }, 450); }
+    else if (e.button === 2) lpT = setTimeout(holdOn, 250); // hold the right mouse button = 2x
   });
   hit.addEventListener("pointermove", e => {
     if (e.pointerType === "mouse") return;
@@ -644,6 +645,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
   hit.addEventListener("pointerup", e => {
     clearTimeout(lpT);
     if (holding) { holdOff(); return; }
+    if (e.pointerType === "mouse" && e.button === 2) return;
     if (swiping) { swiping = false; v.currentTime = hit._target; $("center").hidden = true; return; }
     if (moved) return;
     if (e.pointerType === "mouse") {
@@ -674,8 +676,19 @@ html.noscroll, html.noscroll body { overflow: hidden; }
   const touchy = matchMedia("(pointer: coarse)").matches;
   function fitRot() { pl.classList.toggle("rot", pl.classList.contains("pfs") && innerHeight > innerWidth); }
   function pseudoFs(on) {
+    // FLIP: remember where the player is, switch, then animate from there (grow + turn, like Bilibili)
+    const a = pl.getBoundingClientRect(), wasRot = pl.classList.contains("rot");
     pl.classList.toggle("pfs", on); document.documentElement.classList.toggle("noscroll", on);
     $("bfs").classList.toggle("on", on); fitRot(); poke();
+    const b = pl.getBoundingClientRect(), isRot = pl.classList.contains("rot"), W = pl.offsetWidth, H = pl.offsetHeight;
+    if (!pl.animate || !W || !H || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const aw = wasRot ? a.height : a.width, ah = wasRot ? a.width : a.height;
+    const dx = a.left + a.width / 2 - (b.left + b.width / 2), dy = a.top + a.height / 2 - (b.top + b.height / 2);
+    const pre = on ? "translate(-50%, -50%) " : "";
+    pl.animate([
+      { transform: pre + "translate(" + dx + "px, " + dy + "px) rotate(" + (wasRot ? 90 : 0) + "deg) scale(" + aw / W + ", " + ah / H + ")" },
+      { transform: pre + "translate(0px, 0px) rotate(" + (isRot ? 90 : 0) + "deg) scale(1, 1)" }
+    ], { duration: 320, easing: "cubic-bezier(.2, .8, .2, 1)" });
   }
   addEventListener("resize", fitRot);
   function toggleFs() {
