@@ -90,7 +90,7 @@ a { color: var(--accent); }
 .player video { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; }
 .player video::cue { font-family: var(--ui); background: rgba(0,0,0,.55); font-size: clamp(14px, 2.4vw, 26px); }
 .player .empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: #c9ccd6; font-size: 14px; padding: 20px; }
-.player .hit { position: absolute; inset: 0; }
+.player .hit { position: absolute; inset: 0; -webkit-touch-callout: none; }
 .player .big { position: absolute; left: 50%; top: 50%; width: 64px; height: 64px; margin: -32px 0 0 -32px; border-radius: 50%; background: rgba(0,0,0,.45); display: grid; place-items: center; pointer-events: none; transition: opacity .2s; }
 .player .spin { position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; margin: -19px 0 0 -19px; border: 3px solid rgba(255,255,255,.25); border-top-color: #fff; border-radius: 50%; animation: sp 0.9s linear infinite; pointer-events: none; }
 @keyframes sp { to { transform: rotate(360deg); } }
@@ -104,7 +104,7 @@ a { color: var(--accent); }
 .player.idle .bar, .player.idle .ttl { opacity: 0; pointer-events: none; }
 .player.idle { cursor: none; }
 .player .ttl { position: absolute; left: 0; right: 0; top: 0; padding: 10px 14px 24px; background: linear-gradient(rgba(0,0,0,.6), transparent); font-size: 14px; transition: opacity .25s; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; display: none; }
-.player.fs .ttl, .player.wfs .ttl { display: block; }
+.player.fs .ttl, .player.wfs .ttl, .player.pfs .ttl { display: block; }
 .prog { position: relative; height: 16px; cursor: pointer; touch-action: none; }
 .prog .rail { position: absolute; left: 0; right: 0; top: 6px; height: 4px; background: rgba(255,255,255,.25); border-radius: 2px; transition: height .12s, top .12s; }
 .prog:hover .rail, .prog.drag .rail { top: 5px; height: 6px; }
@@ -150,6 +150,13 @@ a { color: var(--accent); }
 .player.wfs { position: fixed; inset: 0; z-index: 40; border-radius: 0; aspect-ratio: auto; }
 .player:fullscreen { border-radius: 0; aspect-ratio: auto; }
 .player:-webkit-full-screen { border-radius: 0; width: 100%; height: 100%; }
+/* phone fullscreen without the system player (iPhone): fills the screen, turned sideways while the phone is held upright */
+.player.pfs { position: fixed; z-index: 50; left: 0; top: 0; width: 100vw; height: 100vh; height: 100dvh; border-radius: 0; aspect-ratio: auto; }
+.player.pfs.rot { left: 50%; top: 50%; width: 100vh; width: 100dvh; height: 100vw; transform: translate(-50%, -50%) rotate(90deg); }
+.player.pfs .hit { touch-action: none; }
+.player.pfs.rot .bar { padding-left: max(12px, env(safe-area-inset-top)); padding-right: max(12px, env(safe-area-inset-bottom)); }
+.player.pfs:not(.rot) .bar { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+html.noscroll, html.noscroll body { overflow: hidden; }
 
 /* phone */
 @media (max-width: 899px) {
@@ -586,7 +593,9 @@ a { color: var(--accent); }
   }
   $("bmark").onclick = e => { e.stopPropagation(); addMark(); };
   v.addEventListener("durationchange", renderMarks);
-  const frac = e => { const r = prog.getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); };
+  // pointer position inside an element, in the player's own frame (the player may be turned 90° in phone fullscreen)
+  function loc(e, el) { const r = el.getBoundingClientRect(); return pl.classList.contains("rot") ? { x: e.clientY - r.top, y: r.right - e.clientX, w: r.height } : { x: e.clientX - r.left, y: e.clientY - r.top, w: r.width }; }
+  const frac = e => { const p = loc(e, prog); return Math.min(1, Math.max(0, p.x / p.w)); };
   function tipAt(e) { const f = frac(e), t = $("tip"); t.hidden = !v.duration; t.textContent = fmt(f * v.duration); const mk = getMarks().find(m => Math.abs(m.t / v.duration - f) < 0.006); if (mk) t.textContent += mk.note ? "  ★ " + mk.note : "  ★"; t.style.left = Math.min(Math.max(f * 100, 4), 96) + "%"; }
   let dragging = false;
   prog.addEventListener("pointerdown", e => { if (!v.duration) return; dragging = true; prog.classList.add("drag"); prog.setPointerCapture(e.pointerId); v.currentTime = frac(e) * v.duration; tipAt(e); e.stopPropagation(); });
@@ -618,15 +627,15 @@ a { color: var(--accent); }
   const hit = $("hit");
   let tapT = 0, lastTap = 0, lpT = 0, sx = 0, sy = 0, st = 0, swiping = false, moved = false, chain = 0, chainT = 0;
   hit.addEventListener("pointerdown", e => {
-    sx = e.clientX; sy = e.clientY; st = v.currentTime; swiping = false; moved = false;
+    const p = loc(e, hit); sx = p.x; sy = p.y; st = v.currentTime; swiping = false; moved = false;
     if (e.pointerType !== "mouse") { lpT = setTimeout(() => { if (!moved) holdOn(); }, 450); }
   });
   hit.addEventListener("pointermove", e => {
     if (e.pointerType === "mouse") return;
-    const dx = e.clientX - sx, dy = e.clientY - sy;
+    const p = loc(e, hit), dx = p.x - sx, dy = p.y - sy;
     if (Math.abs(dx) > 12 || Math.abs(dy) > 12) { moved = true; clearTimeout(lpT); }
     if (!holding && v.duration && (swiping || (Math.abs(dx) > 24 && Math.abs(dx) > Math.abs(dy) * 1.5))) {
-      swiping = true; const w = hit.getBoundingClientRect().width;
+      swiping = true; const w = p.w;
       const t = Math.min(v.duration, Math.max(0, st + dx / w * Math.min(v.duration, 600)));
       const c = $("center"); c.textContent = fmt(t) + " / " + fmt(v.duration) + "  (" + (t >= st ? "+" : "−") + fmt(Math.abs(t - st)) + ")"; c.hidden = false; clearTimeout(centerT);
       hit._target = t;
@@ -643,7 +652,7 @@ a { color: var(--accent); }
       if (now - lastTap < 280) { clearTimeout(tapT); lastTap = 0; toggleFs(); return; }
       lastTap = now; tapT = setTimeout(toggle, 220); return;
     }
-    const r = hit.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, now = Date.now();
+    const p = loc(e, hit), x = p.x / p.w, now = Date.now();
     const side = x < 0.33 ? -1 : x > 0.67 ? 1 : 0;
     if (now - lastTap < 300 || (chain && now - chainT < 600 && side)) {
       clearTimeout(tapT); lastTap = 0;
@@ -661,8 +670,18 @@ a { color: var(--accent); }
   // ---------- fullscreen ----------
   const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
   const canFs = !!(pl.requestFullscreen || pl.webkitRequestFullscreen);
+  // iPhone has no element fullscreen (only the system player, where our gestures don't work), so fake it
+  const touchy = matchMedia("(pointer: coarse)").matches;
+  function fitRot() { pl.classList.toggle("rot", pl.classList.contains("pfs") && innerHeight > innerWidth); }
+  function pseudoFs(on) {
+    pl.classList.toggle("pfs", on); document.documentElement.classList.toggle("noscroll", on);
+    $("bfs").classList.toggle("on", on); fitRot(); poke();
+  }
+  addEventListener("resize", fitRot);
   function toggleFs() {
+    if (pl.classList.contains("pfs")) { pseudoFs(false); return; }
     if (fsEl()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
+    if (!canFs && touchy) { if (pl.classList.contains("wfs")) toggleWfs(); pseudoFs(true); return; }
     if (canFs) {
       const p = (pl.requestFullscreen || pl.webkitRequestFullscreen).call(pl);
       if (p && p.then) p.then(() => { if (v.videoWidth > v.videoHeight && screen.orientation && screen.orientation.lock) screen.orientation.lock("landscape").catch(() => {}); }).catch(() => {});
@@ -721,7 +740,7 @@ a { color: var(--accent); }
     const map = {
       " ": toggle, k: toggle, ArrowLeft: () => { seek(-5); center("« 5 秒"); }, ArrowUp: () => stepVol(0.05), ArrowDown: () => stepVol(-0.05),
       f: toggleFs, w: toggleWfs, m: () => { v.muted = !v.muted; center(v.muted ? "已静音" : "取消静音"); }, "[": () => stepRate(-1), "]": () => stepRate(1),
-      c: () => $("bsub").hidden || $("bsub").click(), n: () => next(), b: addMark, Escape: () => pl.classList.contains("wfs") && toggleWfs()
+      c: () => $("bsub").hidden || $("bsub").click(), n: () => next(), b: addMark, Escape: () => pl.classList.contains("pfs") ? pseudoFs(false) : pl.classList.contains("wfs") && toggleWfs()
     };
     const fn = map[k.length === 1 ? k.toLowerCase() : k];
     if (fn) { e.preventDefault(); fn(); poke(); return; }
