@@ -8,6 +8,7 @@
 <meta name="apple-mobile-web-app-title" content="看课">
 <title>看课播放器</title>
 <link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
 <style>
 :root { --bg: #f6f7fa; --card: #ffffff; --ink: #2f3342; --muted: #8a8fa0; --line: #e4e7ee;
@@ -655,9 +656,9 @@ html.noscroll, html.noscroll body { overflow: hidden; }
 
   // ---------- pointer on video: mouse click / touch gestures ----------
   const hit = $("hit");
-  let tapT = 0, wasIdle = false, lastTap = 0, lpT = 0, sx = 0, sy = 0, st = 0, swiping = false, moved = false, chain = 0, chainT = 0;
+  let tapT = 0, wasIdle = false, lastTap = 0, lpT = 0, sx = 0, sy = 0, moved = false, chain = 0, chainT = 0;
   hit.addEventListener("pointerdown", e => {
-    const p = loc(e, hit); sx = p.x; sy = p.y; st = v.currentTime; swiping = false; moved = false;
+    const p = loc(e, hit); sx = p.x; sy = p.y; moved = false;
     wasIdle = pl.classList.contains("idle"); // touchstart pokes right after this, so remember whether the controls were hidden
     if (e.pointerType !== "mouse") { lpT = setTimeout(() => { if (!moved) holdOn(); }, 450); }
     else if (e.button === 2) lpT = setTimeout(holdOn, 250); // hold the right mouse button = 2x
@@ -665,19 +666,13 @@ html.noscroll, html.noscroll body { overflow: hidden; }
   hit.addEventListener("pointermove", e => {
     if (e.pointerType === "mouse") return;
     const p = loc(e, hit), dx = p.x - sx, dy = p.y - sy;
+    // no swipe-to-seek on the picture (too easy to trigger by accident); seeking is only on the progress bar
     if (Math.abs(dx) > 12 || Math.abs(dy) > 12) { moved = true; clearTimeout(lpT); }
-    if (!holding && v.duration && (swiping || (Math.abs(dx) > 24 && Math.abs(dx) > Math.abs(dy) * 1.5))) {
-      swiping = true; const w = p.w;
-      const t = Math.min(v.duration, Math.max(0, st + dx / w * Math.min(v.duration, 600)));
-      const c = $("center"); c.textContent = fmt(t) + " / " + fmt(v.duration) + "  (" + (t >= st ? "+" : "−") + fmt(Math.abs(t - st)) + ")"; c.hidden = false; clearTimeout(centerT);
-      hit._target = t;
-    }
   });
   hit.addEventListener("pointerup", e => {
     clearTimeout(lpT);
     if (holding) { holdOff(); return; }
     if (e.pointerType === "mouse" && e.button === 2) return;
-    if (swiping) { swiping = false; v.currentTime = hit._target; $("center").hidden = true; return; }
     if (moved) return;
     if (e.pointerType === "mouse") {
       // single click = play/pause, double click = fullscreen (like Bilibili)
@@ -696,7 +691,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
     chain = 0; lastTap = now;
     tapT = setTimeout(() => { wasIdle || v.paused ? poke() : pl.classList.add("idle"); }, 300);
   });
-  hit.addEventListener("pointercancel", () => { clearTimeout(lpT); holdOff(); swiping = false; });
+  hit.addEventListener("pointercancel", () => { clearTimeout(lpT); holdOff(); });
   hit.addEventListener("contextmenu", e => e.preventDefault());
   pl.addEventListener("touchstart", () => poke(), { passive: true });
 
