@@ -164,6 +164,13 @@ a { color: var(--accent); }
 .player.pfs { position: fixed; z-index: 50; left: 50%; top: 50%; width: 100vw; height: 100vh; height: 100dvh; transform: translate(-50%, -50%); border-radius: 0; aspect-ratio: auto; }
 .player.pfs.rot { width: 100vh; width: 100dvh; height: 100vw; transform: translate(-50%, -50%) rotate(90deg); }
 .player.pfs .hit { touch-action: none; }
+.player.pfs .ctr { height: 50px; gap: 8px; }
+.player.pfs .ib { height: 48px; min-width: 46px; padding: 0 8px; font-size: 15px; }
+.player.pfs .ib svg { width: 27px; height: 27px; }
+.player.pfs .time { font-size: 14.5px; padding: 0 6px; }
+.player.pfs .menu { bottom: 54px; }
+.player.pfs .toast { bottom: 100px; }
+.player.pfs .menu button { font-size: 15.5px; padding: 9px 22px; }
 .player.pfs.rot .bar { padding-left: max(12px, env(safe-area-inset-top)); padding-right: max(12px, env(safe-area-inset-bottom)); }
 .player.pfs:not(.rot) .bar { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
 html.noscroll, html.noscroll body { overflow: hidden; }
@@ -182,7 +189,9 @@ html.noscroll, html.noscroll body { overflow: hidden; }
   .list ol { max-height: none; }
   .marks { margin-top: 10px; }
   .marks ul { max-height: 132px; }
-  .ib { min-width: 30px; padding: 0 3px; white-space: nowrap; font-size: 12.5px; flex-shrink: 0; }
+  .ib { height: 40px; min-width: 30px; padding: 0 3px; white-space: nowrap; font-size: 12.5px; flex-shrink: 0; }
+  .ctr { height: 42px; }
+  .player .toast { bottom: 88px; }
   .ib svg { width: 20px; height: 20px; }
   .time { font-size: 12px; padding: 0 2px; }
   .player .bar { padding: 22px 6px 2px; }
@@ -669,12 +678,6 @@ html.noscroll, html.noscroll body { overflow: hidden; }
     if (holding) { holdOff(); return; }
     if (e.pointerType === "mouse" && e.button === 2) return;
     if (swiping) { swiping = false; v.currentTime = hit._target; $("center").hidden = true; return; }
-    if (moved && pl.classList.contains("pfs")) {
-      // phone fullscreen: swipe down (in the turned picture) goes back to the normal view, like Bilibili
-      const p = loc(e, hit), dx = p.x - sx, dy = p.y - sy;
-      if (dy > 60 && dy > Math.abs(dx) * 1.5) pseudoFs(false);
-      return;
-    }
     if (moved) return;
     if (e.pointerType === "mouse") {
       // single click = play/pause, double click = fullscreen (like Bilibili)
@@ -720,7 +723,14 @@ html.noscroll, html.noscroll body { overflow: hidden; }
     ], { duration: 320, easing: "cubic-bezier(.2, .8, .2, 1)" });
   }
   addEventListener("resize", fitRot);
-  addEventListener("popstate", () => { if (pl.classList.contains("pfs")) pseudoFs(false, true); });
+  // in the turned-picture fullscreen the phone itself is still upright, so swiping in from the picture's bottom edge is
+  // Safari's "back" swipe: stay in fullscreen and explain where the app-switch edge is
+  let backHint = false;
+  addEventListener("popstate", () => {
+    if (!pl.classList.contains("pfs")) return;
+    history.pushState({ plfs: 1 }, "");
+    if (!backHint && pl.classList.contains("rot")) { backHint = true; toast("想切换 App：从手机原来的底边（现在在右手边）往里滑；或在控制中心关掉竖排方向锁定，横屏就和普通 App 一样"); }
+  });
   function toggleFs() {
     if (pl.classList.contains("pfs")) { pseudoFs(false); return; }
     if (fsEl()) { (document.exitFullscreen || document.webkitExitFullscreen).call(document); return; }
