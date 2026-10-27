@@ -345,6 +345,7 @@ a { color: var(--accent); }
 
   // ---------- offline: recordings downloaded into this browser (Cache Storage "pl-videos") ----------
   const VC = "pl-videos", OFF = { have: new Set(), busy: {} };
+  const MINV = 1 << 20; // anything under 1 MB in the video cache is not a real recording
   const offKey = id => new URL("offline/" + encodeURIComponent(id), location.href).href;
   const encPath = p => p.split("/").map(encodeURIComponent).join("/");
   async function offRefresh() {
@@ -364,6 +365,8 @@ a { color: var(--accent); }
       try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (e) {}
       const r = await fetch(pcBase() + "/sync/file/" + encPath(it.path), { cache: "no-store" });
       if (!r.ok) throw new Error(r.status === 404 ? "电脑上找不到这个文件" : "电脑返回 " + r.status);
+      // an old sync program on the PC answers /file/ with its JSON store instead of the video
+      if (/json|text/.test(r.headers.get("Content-Type") || "")) throw new Error("电脑上的同步程序还是旧版，要先更新它才能下载");
       const total = +r.headers.get("Content-Length") || 0; let got = 0;
       const counter = new TransformStream({ transform(ch, ctl) {
         got += ch.byteLength; const p = total ? Math.min(99, Math.floor(got / total * 100)) : 0;
@@ -372,6 +375,8 @@ a { color: var(--accent); }
       } });
       const c = await caches.open(VC);
       await c.put(offKey(it.id), new Response(r.body.pipeThrough(counter), { headers: { "Content-Type": "video/mp4" } }));
+      const saved = await c.match(offKey(it.id));
+      if (!saved || (await saved.blob()).size < MINV) throw new Error("下下来的不是完整视频，电脑上的同步程序可能还是旧版");
       try { const t = await fetch(pcBase() + "/sync/sub/" + encPath(it.path)); if (t.ok) await c.put(offKey(it.id + ".vtt"), new Response(await t.text(), { headers: { "Content-Type": "text/vtt" } })); } catch (e) {}
       toast("已下载：" + it.title + "，没网也能看");
     } catch (e) {
@@ -402,10 +407,17 @@ a { color: var(--accent); }
     renderChips(); renderList(); renderMarks();
     if (offline) {
       // downloaded copy: play from this browser's storage, no network needed
-      caches.open(VC).then(c => Promise.all([c.match(offKey(it.id)), c.match(offKey(it.id + ".vtt"))])).then(async ([r, sub]) => {
+      caches.open(VC).then(c => Promise.all([c, c.match(offKey(it.id)), c.match(offKey(it.id + ".vtt"))])).then(async ([c, r, sub]) => {
         if (S.item !== it) return;
         if (!r) { OFF.have.delete(it.id); return openItem(co, it, play); }
-        setSrc(URL.createObjectURL(await r.blob()), it.title);
+        const b = await r.blob();
+        if (b.size < MINV) {
+          // broken download (e.g. saved while the PC still ran the old sync program): drop it and fall back to the PC
+          try { await c.delete(offKey(it.id)); await c.delete(offKey(it.id + ".vtt")); } catch (e) {}
+          await offRefresh(); toast("这节之前的下载是坏的，已删掉；电脑上的同步程序更新后再点 ⤓ 重新下载");
+          return openItem(co, it, play);
+        }
+        setSrc(URL.createObjectURL(b), it.title);
         if (sub) addTrack(await sub.text(), true);
         afterLoad(play);
       });
@@ -484,7 +496,7 @@ a { color: var(--accent); }
   v.addEventListener("play", paintPlay); v.addEventListener("pause", paintPlay);
   v.addEventListener("waiting", () => $("spin").hidden = false);
   ["playing", "canplay", "seeked", "pause"].forEach(e => v.addEventListener(e, () => $("spin").hidden = true));
-  v.addEventListener("error", () => { if (!v.src) return; toast(S.item && S.item.path && !S.item.url ? "连不上电脑：确认电脑开着、Tailscale 两边都连上了" : "这个视频放不了（链接失效，或格式手机不支持；mp4/H.264 最稳）", S.item && S.item.path ? "改电脑地址" : null, askPc); });
+  v.addEventListener("error", () => { if (!v.src) return; const fromCache = S.blobUrl && v.src === S.blobUrl; toast(fromCache ? "已下载的这份放不了：点列表里的 ✓ 删掉，再重新下载" : S.item && S.item.path && !S.item.url ? "连不上电脑：确认电脑开着、Tailscale 两边都连上了" : "这个视频放不了（链接失效，或格式手机不支持；mp4/H.264 最稳）", !fromCache && S.item && S.item.path ? "改电脑地址" : null, askPc); });
   $("bplay").onclick = toggle; $("bnext").onclick = () => next();
   const seek = d => { if (!v.duration) return; v.currentTime = Math.min(v.duration - 0.1, Math.max(0, v.currentTime + d)); };
 
