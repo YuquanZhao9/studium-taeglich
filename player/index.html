@@ -699,14 +699,18 @@ html.noscroll, html.noscroll body { overflow: hidden; }
   const fsEl = () => document.fullscreenElement || document.webkitFullscreenElement;
   const canFs = !!(pl.requestFullscreen || pl.webkitRequestFullscreen);
   // iPhone has no element fullscreen (only the system player, where our gestures don't work), so fake it
-  function fitRot() { pl.classList.toggle("rot", pl.classList.contains("pfs") && innerHeight > innerWidth); }
+  // inside the 看课 iPhone app (ios-app/) the app turns the whole phone to landscape instead of us turning the picture
+  const app = window.webkit && webkit.messageHandlers && webkit.messageHandlers.kanke;
+  function fitRot() { pl.classList.toggle("rot", !app && pl.classList.contains("pfs") && innerHeight > innerWidth); }
   function pseudoFs(on, fromBack) {
     // FLIP: remember where the player is, switch, then animate from there (grow + turn, like Bilibili)
     const a = pl.getBoundingClientRect(), wasRot = pl.classList.contains("rot");
     pl.classList.toggle("pfs", on); document.documentElement.classList.toggle("noscroll", on);
     // an iPhone edge swipe / back while in fullscreen should only leave fullscreen, not the page
-    if (on) history.pushState({ plfs: 1 }, ""); else if (!fromBack && history.state && history.state.plfs) history.back();
+    if (app) app.postMessage({ fs: on });
+    else if (on) history.pushState({ plfs: 1 }, ""); else if (!fromBack && history.state && history.state.plfs) history.back();
     $("bfs").classList.toggle("on", on); fitRot(); poke();
+    if (app) return; // the system's rotation is the animation
     if (on && pl.classList.contains("rot") && !ls.get("pl-rothint")) { ls.set("pl-rothint", 1); setTimeout(() => toast(ROT_HINT), 400); }
     const b = pl.getBoundingClientRect(), isRot = pl.classList.contains("rot"), W = pl.offsetWidth, H = pl.offsetHeight;
     if (!pl.animate || !W || !H || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
