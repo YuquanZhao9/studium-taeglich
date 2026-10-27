@@ -172,7 +172,7 @@ a { color: var(--accent); }
 .player.pfs .toast { bottom: 100px; }
 .player.pfs .menu button { font-size: 15.5px; padding: 9px 22px; }
 .player.pfs.rot .bar { padding-left: max(12px, env(safe-area-inset-top)); padding-right: max(12px, env(safe-area-inset-bottom)); }
-.player.pfs:not(.rot) .bar { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); }
+.player.pfs:not(.rot) .bar { padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right)); padding-bottom: max(6px, env(safe-area-inset-bottom)); }
 html.noscroll, html.noscroll body { overflow: hidden; }
 
 /* phone */
@@ -712,6 +712,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
     // an iPhone edge swipe / back while in fullscreen should only leave fullscreen, not the page
     if (on) history.pushState({ plfs: 1 }, ""); else if (!fromBack && history.state && history.state.plfs) history.back();
     $("bfs").classList.toggle("on", on); fitRot(); poke();
+    if (on && pl.classList.contains("rot") && !ls.get("pl-rothint")) { ls.set("pl-rothint", 1); setTimeout(() => toast(ROT_HINT), 400); }
     const b = pl.getBoundingClientRect(), isRot = pl.classList.contains("rot"), W = pl.offsetWidth, H = pl.offsetHeight;
     if (!pl.animate || !W || !H || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
     const aw = wasRot ? a.height : a.width, ah = wasRot ? a.width : a.height;
@@ -722,14 +723,25 @@ html.noscroll, html.noscroll body { overflow: hidden; }
       { transform: pre + "translate(0px, 0px) rotate(" + (isRot ? 90 : 0) + "deg) scale(1, 1)" }
     ], { duration: 320, easing: "cubic-bezier(.2, .8, .2, 1)" });
   }
-  addEventListener("resize", fitRot);
+  // turning the phone (rotation lock off) = real landscape, so iOS's own gestures (swipe up to switch apps) work:
+  // go fullscreen when it turns sideways and back when it turns upright, like Bilibili
+  let wasLand = innerWidth > innerHeight;
+  addEventListener("resize", () => {
+    const land = innerWidth > innerHeight, typing = /^(INPUT|TEXTAREA)$/.test((document.activeElement || {}).tagName || "");
+    if (land !== wasLand && !typing && coarse && !canFs) {
+      if (land && !pl.classList.contains("pfs") && v.src) pseudoFs(true);
+      else if (!land && pl.classList.contains("pfs") && !pl.classList.contains("rot")) pseudoFs(false);
+    }
+    wasLand = land; fitRot();
+  });
   // in the turned-picture fullscreen the phone itself is still upright, so swiping in from the picture's bottom edge is
   // Safari's "back" swipe: stay in fullscreen and explain where the app-switch edge is
   let backHint = false;
+  const ROT_HINT = "想要真正的横屏（上滑切换 App 等系统手势都正常）：在控制中心关掉「竖排方向锁定」，然后直接把手机横过来";
   addEventListener("popstate", () => {
     if (!pl.classList.contains("pfs")) return;
     history.pushState({ plfs: 1 }, "");
-    if (!backHint && pl.classList.contains("rot")) { backHint = true; toast("想切换 App：从手机原来的底边（现在在右手边）往里滑；或在控制中心关掉竖排方向锁定，横屏就和普通 App 一样"); }
+    if (!backHint && pl.classList.contains("rot")) { backHint = true; toast(ROT_HINT); }
   });
   function toggleFs() {
     if (pl.classList.contains("pfs")) { pseudoFs(false); return; }
