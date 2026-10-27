@@ -292,7 +292,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
 
   // ---------- state ----------
   const v = $("v"), pl = $("pl");
-  const S = { lib: { courses: [] }, course: null, item: null, local: null, subOn: true, subUrl: null };
+  const S = { lib: { courses: [] }, course: null, item: null, local: null, subOn: false, subUrl: null }; // subtitles start off; the 字幕 button turns them on for this visit
   const RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3];
   const posKey = id => "pl-pos-" + id;
   const curKey = () => S.item ? S.item.id : S.local ? "local:" + S.local.name + ":" + S.local.size : null;
@@ -614,7 +614,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
 
   // ---------- overlays ----------
   let idleT = 0;
-  function poke() { pl.classList.remove("idle"); clearTimeout(idleT); if (!v.paused) idleT = setTimeout(() => { if (!$("ratepop").classList.contains("open") && !dragging) pl.classList.add("idle"); }, 2800); }
+  function poke() { pl.classList.remove("idle"); clearTimeout(idleT); if (!v.paused) idleT = setTimeout(() => { if (!$("ratepop").classList.contains("open") && !dragging) pl.classList.add("idle"); }, 2500); }
   pl.addEventListener("mousemove", poke);
   let centerT = 0;
   function center(s) { const c = $("center"); c.textContent = s; c.hidden = false; clearTimeout(centerT); centerT = setTimeout(() => c.hidden = true, 900); }
@@ -633,9 +633,10 @@ html.noscroll, html.noscroll body { overflow: hidden; }
 
   // ---------- pointer on video: mouse click / touch gestures ----------
   const hit = $("hit");
-  let tapT = 0, lastTap = 0, lpT = 0, sx = 0, sy = 0, st = 0, swiping = false, moved = false, chain = 0, chainT = 0;
+  let tapT = 0, wasIdle = false, lastTap = 0, lpT = 0, sx = 0, sy = 0, st = 0, swiping = false, moved = false, chain = 0, chainT = 0;
   hit.addEventListener("pointerdown", e => {
     const p = loc(e, hit); sx = p.x; sy = p.y; st = v.currentTime; swiping = false; moved = false;
+    wasIdle = pl.classList.contains("idle"); // touchstart pokes right after this, so remember whether the controls were hidden
     if (e.pointerType !== "mouse") { lpT = setTimeout(() => { if (!moved) holdOn(); }, 450); }
     else if (e.button === 2) lpT = setTimeout(holdOn, 250); // hold the right mouse button = 2x
   });
@@ -671,7 +672,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
       return;
     }
     chain = 0; lastTap = now;
-    tapT = setTimeout(() => { pl.classList.contains("idle") || v.paused ? poke() : pl.classList.add("idle"); }, 300);
+    tapT = setTimeout(() => { wasIdle || v.paused ? poke() : pl.classList.add("idle"); }, 300);
   });
   hit.addEventListener("pointercancel", () => { clearTimeout(lpT); holdOff(); swiping = false; });
   hit.addEventListener("contextmenu", e => e.preventDefault());
@@ -740,7 +741,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
     if (!(S.item && S.item.burned)) S.subOn = on;
     [...v.textTracks].forEach(t => t.mode = on ? "showing" : "hidden"); $("bsub").classList.toggle("on", on); center(on ? "字幕开" : "字幕关");
   };
-  $("fsub").onchange = async e => { const f = e.target.files[0]; if (!f) return; const s = await f.text(); addTrack(/^WEBVTT/.test(s) ? s : srt2vtt(s), true); e.target.value = ""; center("字幕已加载"); };
+  $("fsub").onchange = async e => { const f = e.target.files[0]; if (!f) return; const s = await f.text(); S.subOn = true; addTrack(/^WEBVTT/.test(s) ? s : srt2vtt(s), true); e.target.value = ""; center("字幕已加载"); };
   $("fvid").onchange = e => {
     const f = e.target.files[0], tag = e.target.dataset.for; e.target.dataset.for = ""; e.target.value = "";
     if (!f) return;
@@ -749,7 +750,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
   };
   // drag & drop a file onto the page (desktop)
   addEventListener("dragover", e => e.preventDefault());
-  addEventListener("drop", async e => { e.preventDefault(); for (const f of e.dataTransfer.files) { if (/\.(srt|vtt)$/i.test(f.name)) { const s = await f.text(); addTrack(/^WEBVTT/.test(s) ? s : srt2vtt(s), true); } else if (/^video\//.test(f.type) || /\.(mkv|mp4|mov|m4v|webm)$/i.test(f.name)) openLocal(f); } });
+  addEventListener("drop", async e => { e.preventDefault(); for (const f of e.dataTransfer.files) { if (/\.(srt|vtt)$/i.test(f.name)) { const s = await f.text(); S.subOn = true; addTrack(/^WEBVTT/.test(s) ? s : srt2vtt(s), true); } else if (/^video\//.test(f.type) || /\.(mkv|mp4|mov|m4v|webm)$/i.test(f.name)) openLocal(f); } });
 
   // ---------- keyboard ----------
   let rightDown = 0, rightHoldT = 0;
