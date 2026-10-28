@@ -446,7 +446,8 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
       }
       out[out.length - 1].lines.push(line);
     }
-    return out.map(c => ({ at: c.at, to: c.to, md: c.lines.join("\n").trim() })).filter(c => c.md);
+    const seen = {};
+    return out.map(c => ({ at: c.at, to: c.to, md: c.lines.join("\n").trim() })).filter(c => c.md).map(c => (c.at != null && (c.n = seen[c.at] = (seen[c.at] || 0) + 1), c));
   }
 
   // ---------- crypto ----------
@@ -749,7 +750,8 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
 
   // ---------- per-segment note + rating (always open; saved like notes: this browser + sync when editing is on) ----------
   const RATES = [["ok", "懂了"], ["half", "有点懂"], ["no", "没懂"]];
-  const segKey = (it, at) => "seg-" + it.key + "-" + at, rateKey = (it, at) => "rate-" + it.key + "-" + at;
+  // several parts can start on the same page (e.g. one per exercise sub-question): the 2nd, 3rd … get ".2", ".3" so each keeps its own note
+  const segId = c => c.at + (c.n > 1 ? "." + c.n : ""), segKey = (it, c) => "seg-" + it.key + "-" + segId(c), rateKey = (it, c) => "rate-" + it.key + "-" + segId(c);
   const segTimers = {};
   async function saveSmall(key, text, st) {
     const at = Date.now(); setLocalNote(key, text, at);
@@ -760,7 +762,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
   }
   function segBox(it, c) {
     const w = document.createElement("div"); w.className = "segx";
-    const rk = rateKey(it, c.at), nk = segKey(it, c.at), cur = noteText(rk);
+    const rk = rateKey(it, c), nk = segKey(it, c), cur = noteText(rk);
     w.innerHTML = '<div class="rate"><span>这段：</span>' + RATES.map(([v, l]) => '<button type="button" data-v="' + v + '" aria-pressed="' + (cur === v) + '">' + l + "</button>").join("") + '<span class="sst"></span></div><textarea rows="1" placeholder="这一段的笔记，直接写，自动保存"></textarea>';
     const st = w.querySelector(".sst"), ta = w.querySelector("textarea");
     ta.value = noteText(nk); healNote(nk); healNote(rk);
@@ -780,7 +782,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     const parts = chunks(currentExplain(o.it).text).filter(c => c.at != null);
     const c = parts.find(c => o.k >= c.at && o.k <= c.to) || parts.filter(c => c.at <= o.k).pop();
     if (!c) { const cur = noteText(o.it.key), t = (cur ? cur + "\n\n" : "") + add; await saveNote(o.it.key, t); S.notes[o.it.key] = { text: t, updatedAt: Date.now() }; render(); return "这节课的笔记"; }
-    const base = o.it.sections[0].page, nk = segKey(o.it, c.at), cur = noteText(nk), t = (cur.trim() ? cur.trimEnd() + "\n\n" : "") + add;
+    const base = o.it.sections[0].page, nk = segKey(o.it, c), cur = noteText(nk), t = (cur.trim() ? cur.trimEnd() + "\n\n" : "") + add;
     const row = [...document.querySelectorAll(".lec[data-from]")].find(r => r.dataset.key === o.it.key && +r.dataset.from === base + c.at - 1);
     const ta = row && row.querySelector(".segx textarea"), st = row && row.querySelector(".segx .sst");
     if (ta) ta.value = t;
@@ -794,7 +796,7 @@ details.files code { font-family: var(--mono); font-size: 12px; overflow-wrap: a
     const bar = $("nobar"); if (!bar || !S.view) return;
     const d = S.view.days[S.dayIdx]; const hits = [];
     d.items.forEach(it => { if (it.type !== "session" || !it.sections || !it.sections.length) return; const base = it.sections[0].page;
-      chunks(currentExplain(it).text).forEach(c => { if (c.at != null && noteText(rateKey(it, c.at)) === "no") hits.push({ it, c, page: base + c.at - 1 }); }); });
+      chunks(currentExplain(it).text).forEach(c => { if (c.at != null && noteText(rateKey(it, c)) === "no") hits.push({ it, c, page: base + c.at - 1 }); }); });
     bar.hidden = !hits.length; if (!hits.length) { bar.innerHTML = ""; return; }
     bar.innerHTML = "<span>✗ 没懂的段落</span>" + hits.map((h, i) => '<button type="button" data-i="' + i + '">' + esc(h.it.course) + " 第 " + h.page + " 页</button>").join("");
     bar.querySelectorAll("button").forEach(bt => bt.onclick = () => { const h = hits[+bt.dataset.i]; const row = [...document.querySelectorAll(".lec[data-from]")].find(r => r.dataset.key === h.it.key && +r.dataset.from === h.page);
