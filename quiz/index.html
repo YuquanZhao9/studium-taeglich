@@ -88,6 +88,7 @@ code { font: 0.92em var(--mono); background: var(--accent-soft); padding: 1px 5p
 .tag.star { background: var(--star-soft); color: var(--star); }
 .tag.num { background: none; color: var(--muted); font-family: var(--mono); padding-left: 0; }
 .qtext { font-size: 16.5px; line-height: 1.7; margin-bottom: 14px; overflow-wrap: anywhere; }
+.qtext img.qimg { display: block; max-width: 100%; max-height: 70vh; margin: 10px auto; border-radius: 8px; background: #fff; }
 .opts { display: grid; gap: 8px; }
 .opt { display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 8px; align-items: start; text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: 10px; padding: 10px 12px; cursor: pointer; font-size: 15px; line-height: 1.6; overflow-wrap: anywhere; }
 .opt:hover:not(:disabled) { border-color: var(--accent); }
@@ -182,7 +183,8 @@ code { font: 0.92em var(--mono); background: var(--accent-soft); padding: 1px 5p
     catch (e) { return esc(t); }
   }
   function plain(s) {
-    return esc(s).replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\n/g, "<br>");
+    return esc(s).replace(/!\[([^\]]*)\]\(([^)\s]+)\)/g, (m, alt, n) => (BANK && BANK.img && BANK.img[n]) ? '<img class="qimg" src="' + BANK.img[n] + '" alt="' + alt + '">' : m)
+      .replace(/`([^`]+)`/g, "<code>$1</code>").replace(/\*\*(.+?)\*\*/g, "<b>$1</b>").replace(/\n/g, "<br>");
   }
   function md(s) {
     if (!s) return "";
@@ -332,6 +334,9 @@ code { font: 0.92em var(--mono); background: var(--accent-soft); padding: 1px 5p
     } else if (q.type === "tf") {
       const L = TFL[lang] || TFL.en;
       h += '<div class="tf"><button class="opt" data-k="T">' + L[0] + '<small>对</small></button><button class="opt" data-k="F">' + L[1] + "<small>错</small></button></div>";
+    }
+    if (q.type === "choice" || q.type === "tf") {
+      h += '<div class="acts"><button class="btn" id="reveal">不作答，直接看答案</button></div>';
     } else {
       h += '<textarea class="draft" id="draft" placeholder="先在纸上或这里写出你的答案（不保存），再看答案"></textarea>';
       h += '<div class="acts"><button class="btn pri" id="reveal">看答案</button></div>';
@@ -365,6 +370,7 @@ code { font: 0.92em var(--mono); background: var(--accent-soft); padding: 1px 5p
   function pick(k) {
     if (S.answered) return;
     const q = S.qs[S.i]; S.answered = true;
+    if ($("reveal")) $("reveal").parentNode.hidden = true;
     const ok = k === q.a;
     document.querySelectorAll(".opt").forEach(b => { b.disabled = true; if (b.dataset.k === q.a) b.classList.add("right"); });
     const mine = [...document.querySelectorAll(".opt")].find(b => b.dataset.k === k);
@@ -379,6 +385,7 @@ code { font: 0.92em var(--mono); background: var(--accent-soft); padding: 1px 5p
     S.answered = true;
     const q = S.qs[S.i];
     $("reveal").parentNode.hidden = true;
+    document.querySelectorAll(".opt").forEach(b => { b.disabled = true; if (b.dataset.k === q.a) b.classList.add("right"); });
     $("fbx").innerHTML = feedback(q, null);
     const done = ok => {
       record(q, ok);
@@ -404,7 +411,7 @@ code { font: 0.92em var(--mono); background: var(--accent-soft); padding: 1px 5p
     const q = S.qs[S.i]; if (!q) return;
     const k = e.key.toLowerCase();
     if (!S.answered) {
-      if (q.type === "choice") { const i = "abcd".indexOf(k) >= 0 ? "abcd".indexOf(k) : "1234".indexOf(k); if (i >= 0 && i < q.opts.length) { e.preventDefault(); pick(String.fromCharCode(65 + i)); } }
+      if (q.type === "choice") { const i = "abcde".indexOf(k) >= 0 ? "abcde".indexOf(k) : "12345".indexOf(k); if (i >= 0 && i < q.opts.length) { e.preventDefault(); pick(String.fromCharCode(65 + i)); } }
       if (q.type === "tf" && (k === "t" || k === "f")) { e.preventDefault(); pick(k.toUpperCase()); }
       if ((q.type === "fill" || q.type === "calc") && k === "enter") { e.preventDefault(); reveal(); }
     } else {
