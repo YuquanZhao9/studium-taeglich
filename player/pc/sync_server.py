@@ -5,12 +5,14 @@ Listens on 127.0.0.1:8765 only; Tailscale exposes it to the user's own devices w
     tailscale serve --bg --set-path /sync http://127.0.0.1:8765
 GET  .../sub/<path>.vtt -> subtitle next to a recording (.vtt, or .srt converted), read-only, under ROOT
 GET  .../file/<path>     -> a recording under ROOT (video files only) with CORS, for offline download
+GET  .../list            -> {"files": [{path, size, mtime}]}: recordings in every <course>/录播/ folder under ROOT,
+                            so new ones show up in the player before anyone adds them to its list
 GET  any other path  -> the whole store as JSON
 POST any path  -> body {"marks": {id: {"at": ms, "items": [...]}}, "pos": {id: {"at": ms, ...}}};
                   per id the entry with the larger "at" wins; returns the merged store.
 Data file: %LOCALAPPDATA%\\StudiumPlayer\\sync.json (outside the served lecture folder).
 """
-import json, os, re, threading
+import json, os, re, threading, time
 from urllib.parse import unquote, urlsplit
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -67,8 +69,32 @@ class H(BaseHTTPRequestHandler):
             return self.subtitle(path.split("/sub/", 1)[1])
         if "/file/" in path:
             return self.file(path.split("/file/", 1)[1])
+        if path.rstrip("/").endswith("/list"):
+            return self.listing()
         with LOCK:
             self.reply(200, load())
+
+    def listing(self):
+        out, now = [], time.time()
+        try:
+            tops = sorted((e for e in os.scandir(ROOT) if e.is_dir()), key=lambda e: e.name)
+        except OSError:
+            tops = []
+        for top in tops:
+            for d, dirs, files in os.walk(os.path.join(top.path, "录播")):
+                dirs[:] = [x for x in dirs if not x.startswith((".", "~"))]
+                for fn in sorted(files):
+                    if fn.startswith((".", "~")) or os.path.splitext(fn)[1].lower() not in VIDEO:
+                        continue
+                    full = os.path.join(d, fn)
+                    try:
+                        st = os.stat(full)
+                    except OSError:
+                        continue
+                    if now - st.st_mtime < 120 or st.st_size < (1 << 20):
+                        continue  # still being downloaded / written
+                    out.append({"path": os.path.relpath(full, ROOT).replace(os.sep, "/"), "size": st.st_size, "mtime": int(st.st_mtime)})
+        self.reply(200, {"files": out})
 
     def file(self, rel):
         full = os.path.realpath(os.path.join(ROOT, rel))
