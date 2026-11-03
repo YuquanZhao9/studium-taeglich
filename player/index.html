@@ -96,8 +96,8 @@ a { color: var(--accent); }
 .player.idle .big.pz { opacity: 0; pointer-events: none; }
 .player .spin { position: absolute; left: 50%; top: 50%; width: 38px; height: 38px; margin: -19px 0 0 -19px; border: 3px solid rgba(255,255,255,.25); border-top-color: #fff; border-radius: 50%; animation: sp 0.9s linear infinite; pointer-events: none; }
 @keyframes sp { to { transform: rotate(360deg); } }
-.player .toast { position: absolute; z-index: 3; left: 14px; bottom: 64px; background: rgba(20,20,24,.82); border-radius: 6px; padding: 7px 12px; font-size: 13px; pointer-events: auto; display: flex; gap: 10px; align-items: center; max-width: calc(100% - 28px); }
-.player .toast button { background: none; border: none; color: var(--pink); cursor: pointer; padding: 0; font-size: 13px; }
+.player .toast { position: absolute; z-index: 3; left: 14px; bottom: 64px; background: rgba(20,20,24,.82); border-radius: 6px; padding: 7px 12px; font-size: 13px; pointer-events: none; display: flex; gap: 10px; align-items: center; max-width: calc(100% - 28px); }
+.player .toast button { background: none; border: none; color: var(--pink); cursor: pointer; padding: 0; font-size: 13px; pointer-events: auto; } /* taps on the text reach the picture */
 .player .center { position: absolute; left: 50%; top: 18%; transform: translateX(-50%); background: rgba(20,20,24,.78); border-radius: 8px; padding: 8px 16px; font: 600 15px var(--ui); pointer-events: none; white-space: nowrap; }
 .player .ripple { position: absolute; top: 0; bottom: 0; width: 34%; display: grid; place-items: center; pointer-events: none; font: 600 14px var(--ui); }
 .player .ripple.l { left: 0; background: radial-gradient(ellipse at left, rgba(255,255,255,.18), transparent 70%); }
@@ -371,6 +371,49 @@ html.noscroll, html.noscroll body { overflow: hidden; }
     const u = v0.trim(); if (!/^https:\/\/[^/]+/.test(u)) { alert("要以 https:// 开头"); return false; }
     ls.set("pl-pc", u); paintPc(); return true;
   }
+  // recordings that appear on the PC in a <course>\录播\ folder show up by themselves, even before anyone adds them to
+  // the list: sync_server.py answers /sync/list with what is there; the last answer is kept for offline use
+  async function addFound() {
+    let files = null;
+    if (pcBase()) {
+      try {
+        const r = await Promise.race([fetch(pcBase() + "/sync/list", { cache: "no-store" }), new Promise((_, no) => setTimeout(() => no(new Error("timeout")), 4000))]);
+        if (r.ok) { files = (await r.json()).files; if (Array.isArray(files)) ls.set("pl-found", JSON.stringify(files)); else files = null; }
+      } catch (e) {}
+    }
+    mergeFound(files || lj("pl-found", []));
+  }
+  function mergeFound(files) {
+    const known = new Set(), byTop = {};
+    S.lib.courses.forEach(co => co.items.forEach(it => {
+      if (!it.path) return;
+      known.add(it.path);
+      const top = it.path.split("/")[0];
+      if (!byTop[top] || /\/录播\//.test(it.path)) byTop[top] = co;
+    }));
+    const added = new Set();
+    for (const f of files) {
+      if (!f || !f.path || known.has(f.path)) continue;
+      const parts = f.path.split("/"), top = parts[0], stem = parts[parts.length - 1].replace(/\.[^.]+$/, "");
+      let co = byTop[top];
+      if (!co) { co = byTop[top] = { id: top.replace(/[^A-Za-z0-9]+/g, "") || "PC", name: top.replace(/\s*\(.*\)\s*$/, ""), items: [] }; S.lib.courses.splice(Math.max(0, S.lib.courses.length - (S.lib.courses.some(c => c.id === "DEMO") ? 1 : 0)), 0, co); }
+      const m = stem.match(/^(\d{4})-(\d\d)-(\d\d)[_ ]?(.*)$/), date = m ? m[1] + "-" + m[2] + "-" + m[3] : "";
+      co.items.push({ id: co.id + "-" + stem.replace(/[^\w.-]+/g, "_"), title: co.name + " " + foundTitle(m ? m[4] : stem, date), date, path: f.path, found: true, note: "电脑上新出现的录播，自动加进来的" });
+      known.add(f.path); added.add(co);
+    }
+    added.forEach(co => co.items.sort((a, b) => (a.found && b.found ? (a.date || a.path).localeCompare(b.date || b.path) : 0)));
+  }
+  // "L04" → 第 4 讲, "Ü01" → 练习 1, "part1" → 上半, "camera" → 老师画面
+  function foundTitle(rest, date) {
+    const bits = []; let m;
+    if ((m = rest.match(/(?:^|_)L(\d+)/i))) bits.push("第 " + +m[1] + " 讲");
+    else if ((m = rest.match(/(?:^|_)(?:Ü|Ue|U)(\d+)/i))) bits.push("练习 " + +m[1]);
+    else bits.push(rest.replace(/_/g, " ") || "录播");
+    if ((m = rest.match(/part ?(\d)/i))) bits.push(m[1] === "1" ? "上半" : m[1] === "2" ? "下半" : "第 " + m[1] + " 部分");
+    if (/camera/i.test(rest)) bits.push("老师画面");
+    const extra = (date ? [date.slice(5)] : []).concat(bits.slice(1));
+    return bits[0] + (extra.length ? "（" + extra.join(" ") + "）" : "");
+  }
   function paintPc() { $("bpc").textContent = pcBase() ? "电脑地址：" + pcBase().replace(/^https:\/\//, "").split(".")[0] : "设置电脑地址"; }
 
   // ---------- offline: recordings downloaded into this browser (Cache Storage "pl-videos") ----------
@@ -522,12 +565,13 @@ html.noscroll, html.noscroll body { overflow: hidden; }
 
   // ---------- play state ----------
   const toggle = () => { if (!v.src) return; v.paused ? v.play().catch(() => {}) : v.pause(); };
-  // phones get a tappable play/pause button in the middle (shown with the controls); desktop only shows ▶ while paused
+  // phones get a tappable pause button in the middle while playing (shown with the controls); nothing covers the picture
+  // while paused (the user reads the slide), a tap anywhere plays again
   const coarse = matchMedia("(pointer: coarse)").matches;
   function paintPlay() {
     const d = v.paused ? "M8 5.5v13l11-6.5z" : "M7 5h3.5v14H7zm6.5 0H17v14h-3.5z";
     $("iplay").setAttribute("d", d); $("ibig").setAttribute("d", d);
-    $("big").hidden = !v.src || (!v.paused && !coarse); $("big").classList.toggle("pz", !v.paused); poke();
+    $("big").hidden = !v.src || v.paused || !coarse; $("big").classList.toggle("pz", !v.paused); poke();
   }
   $("big").addEventListener("click", e => { e.stopPropagation(); toggle(); });
   v.addEventListener("play", paintPlay); v.addEventListener("pause", paintPlay);
@@ -637,7 +681,8 @@ html.noscroll, html.noscroll body { overflow: hidden; }
 
   // ---------- overlays ----------
   let idleT = 0;
-  function poke() { pl.classList.remove("idle"); clearTimeout(idleT); if (!v.paused) idleT = setTimeout(() => { if (!$("ratepop").classList.contains("open") && !dragging) pl.classList.add("idle"); }, 2500); }
+  // controls fade after 2.5 s, also while paused (the user reads the paused slide)
+  function poke() { pl.classList.remove("idle"); clearTimeout(idleT); if (v.src) idleT = setTimeout(() => { if (!$("ratepop").classList.contains("open") && !dragging) pl.classList.add("idle"); }, 2500); }
   pl.addEventListener("mousemove", poke);
   let centerT = 0;
   function center(s) { const c = $("center"); c.textContent = s; c.hidden = false; clearTimeout(centerT); centerT = setTimeout(() => c.hidden = true, 900); }
@@ -689,7 +734,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
       return;
     }
     chain = 0; lastTap = now;
-    tapT = setTimeout(() => { wasIdle || v.paused ? poke() : pl.classList.add("idle"); }, 300);
+    tapT = setTimeout(() => { v.paused ? toggle() : wasIdle ? poke() : pl.classList.add("idle"); }, 300);
   });
   hit.addEventListener("pointercancel", () => { clearTimeout(lpT); holdOff(); });
   hit.addEventListener("contextmenu", e => e.preventDefault());
@@ -831,6 +876,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
   async function start() {
     try { S.lib = await loadLib(); } catch (e) { S.lib = { courses: [] }; toast("录播列表读取失败（" + e.message + "），还可以打开本地视频。"); }
     paintPc();
+    await addFound();
     await offRefresh();
     firstSync();
     await Promise.race([pull().then(push), new Promise(r => setTimeout(r, 3000))]);
