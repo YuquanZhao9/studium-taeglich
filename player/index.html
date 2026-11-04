@@ -382,6 +382,23 @@ html.noscroll, html.noscroll body { overflow: hidden; }
       } catch (e) {}
     }
     mergeFound(files || lj("pl-found", []));
+    if (files) dropStale(files);
+  }
+  // a recording replaced on the PC (e.g. new subtitles or cleaned-up audio, same name) makes the downloaded copy stale:
+  // compare sizes and delete the old copy so the new version plays
+  async function dropStale(files) {
+    const size = {}; files.forEach(f => { if (f && f.path) size[f.path] = f.size; });
+    const gone = [];
+    try {
+      const c = await caches.open(VC);
+      for (const co of S.lib.courses) for (const it of co.items) {
+        if (!it.path || size[it.path] == null) continue;
+        const r = await c.match(offKey(it.id)); if (!r) continue;
+        const had = +r.headers.get("X-Src-Size") || (await r.blob()).size;
+        if (had && had !== size[it.path]) { await c.delete(offKey(it.id)); await c.delete(offKey(it.id + ".vtt")); gone.push(it.title); }
+      }
+    } catch (e) {}
+    if (gone.length) { await offRefresh(); if (S.course) renderList(); toast("电脑上换了新版本，旧的下载已删掉：" + gone.join("、") + "。需要离线看就再下一次"); }
   }
   function mergeFound(files) {
     const known = new Set(), byTop = {};
@@ -394,6 +411,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
     const added = new Set();
     for (const f of files) {
       if (!f || !f.path || known.has(f.path)) continue;
+      if (f.path.split("/").slice(1, -1).some(x => /^[_.~]/.test(x))) continue; // 录播\_原片, \_降噪前原文件: originals kept on the PC, not lectures
       const parts = f.path.split("/"), top = parts[0], stem = parts[parts.length - 1].replace(/\.[^.]+$/, "");
       let co = byTop[top];
       if (!co) { co = byTop[top] = { id: top.replace(/[^A-Za-z0-9]+/g, "") || "PC", name: top.replace(/\s*\(.*\)\s*$/, ""), items: [] }; S.lib.courses.splice(Math.max(0, S.lib.courses.length - (S.lib.courses.some(c => c.id === "DEMO") ? 1 : 0)), 0, co); }
@@ -447,7 +465,7 @@ html.noscroll, html.noscroll body { overflow: hidden; }
         ctl.enqueue(ch);
       } });
       const c = await caches.open(VC);
-      await c.put(offKey(it.id), new Response(r.body.pipeThrough(counter), { headers: { "Content-Type": "video/mp4" } }));
+      await c.put(offKey(it.id), new Response(r.body.pipeThrough(counter), { headers: { "Content-Type": "video/mp4", "X-Src-Size": String(total) } }));
       const saved = await c.match(offKey(it.id));
       if (!saved || (await saved.blob()).size < MINV) throw new Error("下下来的不是完整视频，电脑上的同步程序可能还是旧版");
       try { const t = await fetch(pcBase() + "/sync/sub/" + encPath(it.path)); if (t.ok) await c.put(offKey(it.id + ".vtt"), new Response(await t.text(), { headers: { "Content-Type": "text/vtt" } })); } catch (e) {}

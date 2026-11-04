@@ -82,7 +82,7 @@ class H(BaseHTTPRequestHandler):
             tops = []
         for top in tops:
             for d, dirs, files in os.walk(os.path.join(top.path, "录播")):
-                dirs[:] = [x for x in dirs if not x.startswith((".", "~"))]
+                dirs[:] = [x for x in dirs if not x.startswith((".", "~", "_"))]  # _原片, _降噪前原文件: kept originals
                 for fn in sorted(files):
                     if fn.startswith((".", "~")) or os.path.splitext(fn)[1].lower() not in VIDEO:
                         continue
