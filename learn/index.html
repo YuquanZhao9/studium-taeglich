@@ -14,19 +14,19 @@
 :root { --bg: #f6f7fa; --card: #ffffff; --ink: #2f3342; --muted: #7d8294; --line: #e4e7ee;
   --accent: #6474d2; --accent-soft: #edf0fc; --ok: #2f8a4e; --ok-soft: #e6f4ea; --bad: #c9612a; --bad-soft: #fcefe6;
   --star: #b9800f; --star-soft: #fbf1dc; --on-accent: #ffffff;
-  --c-AM: #3b6fd1; --c-SASP: #2f8a4e; --c-MC: #b9800f; --c-ITCL: #8a55c9; --c-AR: #d8584f; --c-AT2: #0f8a7e;
+  --c-AM: #3b6fd1; --c-SASP: #2f8a4e; --c-MC: #b9800f; --c-ITCL: #8a55c9; --c-AR: #d8584f; --c-AT2: #0f8a7e; --c-RADAR: #c0478e;
   --ui: "IBM Plex Sans", -apple-system, "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace; --fs: 16.5px; color-scheme: light; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #111217; --card: #1c1d24; --ink: #e8e9ef; --muted: #8e93a4; --line: #2a2c36;
   --accent: #8b98e8; --accent-soft: #262a45; --ok: #6cc48d; --ok-soft: #1d3326; --bad: #f0a070; --bad-soft: #3d2a1c;
   --star: #f2c14e; --star-soft: #40330f; --on-accent: #111217;
-  --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-AT2: #4fc4b5; color-scheme: dark } }
+  --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-AT2: #4fc4b5; --c-RADAR: #f08cc4; color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #111217; --card: #1c1d24; --ink: #e8e9ef; --muted: #8e93a4; --line: #2a2c36;
   --accent: #8b98e8; --accent-soft: #262a45; --ok: #6cc48d; --ok-soft: #1d3326; --bad: #f0a070; --bad-soft: #3d2a1c;
   --star: #f2c14e; --star-soft: #40330f; --on-accent: #111217;
-  --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-AT2: #4fc4b5; color-scheme: dark }
+  --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-AT2: #4fc4b5; --c-RADAR: #f08cc4; color-scheme: dark }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { overflow-x: hidden; }
@@ -362,7 +362,7 @@ article.card h1 .st { font-size: 13px; color: var(--star); background: var(--sta
   function home() {
     pager.hidden = true; document.title = "原理随身学";
     const all = stat(ORDERED), last = ls.get("lr-last"), unclear = ORDERED.filter(id => P[id] && P[id].s === 2);
-    let h = '<p class="intro">六门课讲过的内容，按主题拆成一张张卡片：先一句话说清是什么，再讲直觉、公式、例子和容易错的地方。卡片之间互相链接，跨课的联系也连上了。随手翻一张就能学。</p>';
+    let h = '<p class="intro">七门课讲过的内容，按主题拆成一张张卡片：先一句话说清是什么，再讲直觉、公式、例子和容易错的地方。卡片之间互相链接，跨课的联系也连上了。随手翻一张就能学。</p>';
     h += '<form class="search" id="sf"><input id="q" type="search" placeholder="搜卡片：熵、SVD、Fisher、HIL、手眼标定……" autocomplete="off"><button class="btn" type="submit">搜</button></form>';
     h += '<div class="hero">' + pickHtml(dailyPick(), "今天翻这张") + (last && CARD[last] ? pickHtml(last, "接着读") : pickHtml(ORDERED[0], "从头读")) + "</div>";
     h += '<div class="statline">共 ' + all.n + " 张卡片 · 看过 " + all.seen + " · 懂了 " + all.ok + (all.bad ? " · 还没懂 " + all.bad : "") + "</div>";

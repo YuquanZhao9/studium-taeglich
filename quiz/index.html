@@ -14,19 +14,19 @@
 :root { --bg: #f6f7fa; --card: #ffffff; --ink: #2f3342; --muted: #7d8294; --line: #e4e7ee;
   --accent: #6474d2; --accent-soft: #edf0fc; --ok: #2f8a4e; --ok-soft: #e6f4ea; --bad: #d8584f; --bad-soft: #fcebea;
   --star: #b9800f; --star-soft: #fbf1dc; --on-accent: #ffffff;
-  --c-AM: #3b6fd1; --c-SASP: #2f8a4e; --c-MC: #b9800f; --c-ITCL: #8a55c9; --c-AR: #d8584f; --c-AT2: #0f8a7e;
+  --c-AM: #3b6fd1; --c-SASP: #2f8a4e; --c-MC: #b9800f; --c-ITCL: #8a55c9; --c-AR: #d8584f; --c-AT2: #0f8a7e; --c-RADAR: #c0478e;
   --ui: "IBM Plex Sans", -apple-system, "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei", sans-serif;
   --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace; color-scheme: light; }
 @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
   --bg: #111217; --card: #1c1d24; --ink: #e8e9ef; --muted: #8e93a4; --line: #2a2c36;
   --accent: #8b98e8; --accent-soft: #262a45; --ok: #6cc48d; --ok-soft: #1d3326; --bad: #f07a7d; --bad-soft: #3d2224;
   --star: #f2c14e; --star-soft: #40330f; --on-accent: #111217;
-  --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-AT2: #4fc4b5; color-scheme: dark } }
+  --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-AT2: #4fc4b5; --c-RADAR: #f08cc4; color-scheme: dark } }
 :root[data-theme="dark"] {
   --bg: #111217; --card: #1c1d24; --ink: #e8e9ef; --muted: #8e93a4; --line: #2a2c36;
   --accent: #8b98e8; --accent-soft: #262a45; --ok: #6cc48d; --ok-soft: #1d3326; --bad: #f07a7d; --bad-soft: #3d2224;
   --star: #f2c14e; --star-soft: #40330f; --on-accent: #111217;
-  --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-AT2: #4fc4b5; color-scheme: dark }
+  --c-AM: #7aa2f2; --c-SASP: #6cc48d; --c-MC: #e3b34a; --c-ITCL: #b892ec; --c-AR: #f07a7d; --c-AT2: #4fc4b5; --c-RADAR: #f08cc4; color-scheme: dark }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
 html, body { overflow-x: hidden; }
@@ -264,7 +264,7 @@ code { font: 0.92em var(--mono); background: var(--accent-soft); padding: 1px 5p
     for (const c of BANK.courses) {
       const cs = stat(allQ(c)), stars = allQ(c).filter(q => q.star).length;
       h += '<div class="course" style="--cc: var(--c-' + c.id + ')"><h2><span class="id">' + esc(c.id) + "</span>" + esc(c.name) +
-        "<small>" + (c.lang === "de" ? "题目德语" : "题目英语") + " · 解析中文</small></h2>";
+        "<small>" + (c.lang === "de" ? "题目德语" : c.lang === "zh" ? "题目中文" : "题目英语") + " · 解析中文</small></h2>";
       h += '<div class="stats">' + cs.n + " 题 · ★ " + stars + " · 已做 " + cs.done + (cs.done ? " · 答对 " + Math.round(100 * cs.ok / cs.done) + "%" : "") + "</div>";
       h += '<div class="units">';
       for (const u of c.units) {
@@ -296,7 +296,7 @@ code { font: 0.92em var(--mono); background: var(--accent-soft); padding: 1px 5p
     });
     el.querySelectorAll("[data-go]").forEach(b => b.onclick = () => {
       const g = b.dataset.go;
-      if (g === "mix") start(shuffle(every.slice()).slice(0, 10), "随机 10 题", "六门课混合");
+      if (g === "mix") start(shuffle(every.slice()).slice(0, 10), "随机 10 题", "七门课混合");
       if (g === "wrong") start(wrong, "错题重做", "所有做错过的题");
       if (g === "star") start(every.filter(q => q.star), "全部 ★ 题", "必会和高频的点");
     });
